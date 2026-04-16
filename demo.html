@@ -419,7 +419,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 
 <!-- Header -->
 <header>
-  <div class="logo" id="logo-tap" onclick="onLogoTap()" ontouchend="event.preventDefault();onLogoTap()">
+  <div class="logo" id="logo-tap">
     <span style="font-weight:800;font-size:20px;color:var(--primary)">AGO</span>
     <span id="app-title">SYSTEM MANAGER</span>
     <span class="master-badge" id="master-badge">MASTER</span>
@@ -1796,10 +1796,11 @@ async function addMemo() {
 }
 
 // ── マスター機能 ─────────────────────────────────────────────
-function onLogoTap() {
+function onLogoTap(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
   logoTapCount++;
   clearTimeout(logoTapTimer);
-  if (logoTapCount >= 5) {
+  if (logoTapCount >= 3) {
     logoTapCount = 0;
     if (!masterMode) {
       resetPin();
@@ -1815,6 +1816,21 @@ function onLogoTap() {
     logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 5000);
   }
 }
+
+// スマホ・PC両対応のイベント登録
+(function() {
+  const logo = document.getElementById('logo-tap');
+  if (!logo) return;
+  let touched = false;
+  logo.addEventListener('touchstart', function(e) {
+    touched = true;
+    onLogoTap(e);
+  }, {passive: false});
+  logo.addEventListener('click', function(e) {
+    if (touched) { touched = false; return; } // タッチ済みならスキップ
+    onLogoTap(e);
+  });
+})();
 
 let pinValue = '';
 function resetPin() {
