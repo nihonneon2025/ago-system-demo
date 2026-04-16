@@ -419,7 +419,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 
 <!-- Header -->
 <header>
-  <div class="logo" id="logo-tap" onclick="onLogoTap()">
+  <div class="logo" id="logo-tap" onclick="onLogoTap()" ontouchend="event.preventDefault();onLogoTap()">
     <span style="font-weight:800;font-size:20px;color:var(--primary)">AGO</span>
     <span id="app-title">SYSTEM MANAGER</span>
     <span class="master-badge" id="master-badge">MASTER</span>
@@ -1812,7 +1812,7 @@ function onLogoTap() {
       showToast(t('masterOff'));
     }
   } else {
-    logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 1500);
+    logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 5000);
   }
 }
 

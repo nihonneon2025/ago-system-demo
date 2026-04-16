@@ -4,44 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0f172a">
-<title>AGO SYSTEM MANAGER | デモ版</title>
-<script>
-/** config.js インライン埋め込み（デモ用・スマホ対応） */
-const APP_CONFIG = {
-  companyName: '株式会社AGOグループ',
-  appName: 'AGO SYSTEM MANAGER',
-  shortName: 'AGO',
-  theme: {
-    bg:'#0f172a',surface:'#1e293b',card:'#263147',border:'#334155',
-    primary:'#6366f1',accent:'#818cf8',text:'#f1f5f9',muted:'#94a3b8',
-    green:'#10b981',yellow:'#f59e0b',blue:'#3b82f6',purple:'#8b5cf6',
-    orange:'#f97316',red:'#ef4444',
-  },
-  users: {
-    kanno:{name:'菅野',role:'master'},
-    office01:{name:'事務01',role:'office'},office02:{name:'事務02',role:'office'},office03:{name:'事務03',role:'office'},
-    staff01:{name:'スタッフ01',role:'field'},staff02:{name:'スタッフ02',role:'field'},staff03:{name:'スタッフ03',role:'field'},
-    staff04:{name:'スタッフ04',role:'field'},staff05:{name:'スタッフ05',role:'field'},staff06:{name:'スタッフ06',role:'field'},
-    staff07:{name:'スタッフ07',role:'field'},staff08:{name:'スタッフ08',role:'field'},staff09:{name:'スタッフ09',role:'field'},
-    staff10:{name:'スタッフ10',role:'field'},
-    china01:{name:'中国01',role:'china'},china02:{name:'中国02',role:'china'},
-  },
-  masterPin: 'kanno0',
-  rolePermissions: {
-    master:{orders:true,schedule:true,accounting:true,attendance:true,notifications:true,gps:true,featureControl:true,userManagement:true,masterRevert:true,masterDelete:true},
-    office:{orders:true,schedule:true,accounting:true,attendance:true,notifications:true,gps:false,featureControl:false,userManagement:false,masterRevert:false,masterDelete:false},
-    field:{orders:true,schedule:true,accounting:false,attendance:true,notifications:true,gps:true,featureControl:false,userManagement:false,masterRevert:false,masterDelete:false},
-    china:{orders:true,schedule:false,accounting:false,attendance:false,notifications:true,gps:false,featureControl:false,userManagement:false,masterRevert:false,masterDelete:false},
-  },
-  orderStatuses:['received','ordered_china','factory_confirmed','shipping_prep','in_transit','delivered'],
-  cancelStatuses:['cancel_customer','cancel_factory'],
-  languages:['ja','zh'],defaultLang:'ja',
-  vapidPublicKey:'REPLACE_WITH_AGO_VAPID_PUBLIC_KEY',
-  apiBase:'./api.php',subscribeEndpoint:'./subscribe.php',
-  gps:{enableOnClockIn:true,disableOnClockOut:true,trackingInterval:300},
-  attendance:{enabled:true,requireGps:true},
-};
-</script>
+<title>AGO SYSTEM MANAGER | 株式会社AGOグループ</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{
   --bg:#0f172a;--surface:#1e293b;--card:#263147;--border:#334155;
@@ -50,18 +15,17 @@ const APP_CONFIG = {
   --orange:#f97316;--red:#ef4444;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{overflow-x:hidden;width:100%}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 /* Header */
-header{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 10px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:6px}
-.logo{font-weight:700;font-size:16px;color:var(--accent);display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;flex-shrink:0}
-.logo span{font-size:18px}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{font-weight:700;font-size:18px;color:var(--accent);display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.logo span{font-size:22px}
 .master-badge{background:#ef4444;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;display:none}
 .master-badge.visible{display:inline}
-.header-right{display:flex;align-items:center;gap:4px;flex-shrink:0}
-.lang-btn{background:var(--card);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:8px;cursor:pointer;font-size:12px;transition:all .2s}
+.header-right{display:flex;align-items:center;gap:8px}
+.lang-btn{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:14px;transition:all .2s}
 .lang-btn:hover,.lang-btn.active{background:var(--primary);border-color:var(--primary)}
-.notif-btn{background:var(--card);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:8px;cursor:pointer;font-size:14px;transition:all .2s;line-height:1}
+.notif-btn{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;cursor:pointer;font-size:16px;transition:all .2s;line-height:1}
 .notif-btn:hover{background:var(--primary);border-color:var(--primary)}
 .notif-btn.enabled{color:#10b981;border-color:#10b981}
 .notif-btn.denied{color:#ef4444;border-color:#ef4444;cursor:not-allowed}
@@ -71,23 +35,21 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 .search-input:focus{border-color:var(--primary)}
 .search-icon{position:absolute;left:28px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px;pointer-events:none}
 /* Tab nav */
-.tab-nav{display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.tab-nav::-webkit-scrollbar{display:none}
-.tab-btn{background:none;border:none;color:var(--muted);padding:6px 8px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;flex-shrink:0}
+.tab-nav{display:flex;gap:4px;padding:8px 16px 0;border-bottom:1px solid var(--border)}
+.tab-btn{background:none;border:none;color:var(--muted);padding:8px 14px;font-size:14px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
 .tab-btn:hover{color:var(--text)}
 .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
 /* Stats */
-.stats{display:flex;gap:8px;padding:10px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 14px;min-width:70px;text-align:center;flex-shrink:0}
-.stat-num{font-size:22px;font-weight:700;color:var(--accent)}
-.stat-label{font-size:11px;color:var(--muted);margin-top:2px}
+.stats{display:flex;gap:12px;padding:16px;overflow-x:auto}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 20px;min-width:100px;text-align:center;flex-shrink:0}
+.stat-num{font-size:28px;font-weight:700;color:var(--accent)}
+.stat-label{font-size:12px;color:var(--muted);margin-top:2px}
 /* Filter */
 .filter-bar{padding:0 16px 12px;display:flex;gap:8px;overflow-x:auto}
 .filter-btn{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:20px;cursor:pointer;font-size:13px;white-space:nowrap;transition:all .2s}
 .filter-btn:hover,.filter-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
 /* Order grid */
-.order-grid{padding:0 10px 100px;display:grid;grid-template-columns:1fr;gap:8px}
-@media(min-width:640px){.order-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;padding:0 16px 100px}}
+.order-grid{padding:0 16px 100px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .order-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all .2s;position:relative}
 .order-card:hover{border-color:var(--primary);transform:translateY(-2px)}
 .order-card.stale-warn{border-color:var(--orange)}
@@ -268,8 +230,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 .color-opt{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .2s}
 .color-opt:hover,.color-opt.selected{border-color:#fff;transform:scale(1.15)}
 /* ═══ Timeline Chart ═══ */
-.tl-chart{padding:0 10px 100px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.tl-chart-inner{min-width:700px}
+.tl-chart{padding:0 16px 100px;overflow-x:auto}
 .tl-date-nav{display:flex;align-items:center;gap:8px;padding:0 16px 8px}
 .tl-date-nav button{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:13px}
 .tl-date-nav button:hover{background:var(--primary);border-color:var(--primary)}
@@ -283,7 +244,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 .tl-entry-bar{position:absolute;top:3px;bottom:3px;border-radius:4px;color:#fff;font-size:10px;font-weight:600;display:flex;align-items:center;padding:0 4px;overflow:hidden;white-space:nowrap;cursor:pointer;z-index:1;transition:opacity .2s;min-width:2px}
 .tl-entry-bar:hover{opacity:.85}
 .tl-hour-labels{display:flex;margin-left:80px;margin-bottom:4px}
-.tl-hour-lbl{flex:1;text-align:center;font-size:10px;color:var(--muted);min-width:40px}
+.tl-hour-lbl{flex:1;text-align:center;font-size:10px;color:var(--muted);min-width:0}
 .tl-now-line{position:absolute;top:0;bottom:0;width:2px;background:var(--red);z-index:2}
 .tl-now-dot{position:absolute;top:-4px;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--red)}
 /* ═══ Attendance ═══ */
@@ -1028,7 +989,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:8
 <div class="toast" id="toast"></div>
 
 <script>
-const API = 'mock';
+const API = 'api.php';
 
 // ── ステータス定義 ─────────────────────────────────────────────
 const STATUS_ORDER   = ['received','ordered_china','factory_confirmed','shipping_prep','in_transit','delivered'];
@@ -1218,153 +1179,10 @@ function switchTab(tab) {
   if (tab==='accounting')   initAccountingView();
 }
 
-// ══════════════════════════════════════════════════════════════
-// ── デモ用 localStorage モックAPI ────────────────────────────
-// ══════════════════════════════════════════════════════════════
-function demoDB(key, defaultVal) {
-  try { const v = localStorage.getItem('ago_demo_'+key); return v ? JSON.parse(v) : defaultVal; }
-  catch(e) { return defaultVal; }
-}
-function demoSave(key, val) { localStorage.setItem('ago_demo_'+key, JSON.stringify(val)); }
-
-function initDemoData() {
-  if (localStorage.getItem('ago_demo_initialized3')) return;
-  Object.keys(localStorage).filter(k=>k.startsWith('ago_demo_')).forEach(k=>localStorage.removeItem(k));
-  const now = new Date();
-  const today = formatDate(now);
-  const yesterday = formatDate(new Date(now.getTime()-86400000));
-  const twoDaysAgo = formatDate(new Date(now.getTime()-172800000));
-  const tomorrow = formatDate(new Date(now.getTime()+86400000));
-  const dayAfter = formatDate(new Date(now.getTime()+172800000));
-  const threeDays = formatDate(new Date(now.getTime()+259200000));
-
-  demoSave('orders', [
-    {id:1,order_code:'AGO-20260415-001',source:'material',product:'LED蛍光灯 40W×20本',qty:20,amount:48000,buyer_name:'資材センター',buyer_email:'',buyer_note:'急ぎ希望',status:'in_transit',created_at:twoDaysAgo+' 09:30:00',updated_at:yesterday+' 14:00:00'},
-    {id:2,order_code:'AGO-20260415-002',source:'material',product:'チャンネル文字 ステンレス 5文字',qty:1,amount:125000,buyer_name:'サイン工房',buyer_email:'',buyer_note:'',status:'factory_confirmed',created_at:twoDaysAgo+' 11:00:00',updated_at:yesterday+' 10:00:00'},
-    {id:3,order_code:'AGO-20260416-001',source:'material',product:'LEDネオンサイン カスタム',qty:2,amount:85000,buyer_name:'LED卸売センター',buyer_email:'',buyer_note:'デザイン確認済み',status:'ordered_china',created_at:yesterday+' 08:45:00',updated_at:yesterday+' 15:30:00'},
-    {id:4,order_code:'AGO-20260416-002',source:'material',product:'看板用アルミフレーム 1200mm×3',qty:3,amount:36000,buyer_name:'金属加工○○',buyer_email:'',buyer_note:'',status:'received',created_at:yesterday+' 16:00:00',updated_at:yesterday+' 16:00:00'},
-    {id:5,order_code:'AGO-20260416-003',source:'material',product:'LED投光器 100W 防水×5',qty:5,amount:45000,buyer_name:'電材プロ',buyer_email:'',buyer_note:'',status:'delivered',created_at:twoDaysAgo+' 10:00:00',updated_at:today+' 09:00:00'},
-  ]);
-  demoSave('status_log', [
-    {id:1,order_id:1,status:'received',updated_by:'office01',note:'',created_at:twoDaysAgo+' 09:30:00'},
-    {id:2,order_id:1,status:'ordered_china',updated_by:'office01',note:'',created_at:twoDaysAgo+' 10:00:00'},
-    {id:3,order_id:1,status:'factory_confirmed',updated_by:'china01',note:'工場確認OK',created_at:twoDaysAgo+' 15:00:00'},
-    {id:4,order_id:1,status:'shipping_prep',updated_by:'china01',note:'',created_at:yesterday+' 10:00:00'},
-    {id:5,order_id:1,status:'in_transit',updated_by:'china01',note:'追跡番号: SF1234567890',created_at:yesterday+' 14:00:00'},
-    {id:6,order_id:2,status:'received',updated_by:'office02',note:'',created_at:twoDaysAgo+' 11:00:00'},
-    {id:7,order_id:2,status:'ordered_china',updated_by:'office02',note:'',created_at:twoDaysAgo+' 12:00:00'},
-    {id:8,order_id:2,status:'factory_confirmed',updated_by:'china01',note:'3日後出荷予定',created_at:yesterday+' 10:00:00'},
-    {id:9,order_id:3,status:'received',updated_by:'office01',note:'',created_at:yesterday+' 08:45:00'},
-    {id:10,order_id:3,status:'ordered_china',updated_by:'office01',note:'',created_at:yesterday+' 15:30:00'},
-    {id:11,order_id:4,status:'received',updated_by:'kanno',note:'',created_at:yesterday+' 16:00:00'},
-    {id:12,order_id:5,status:'received',updated_by:'office01',note:'',created_at:twoDaysAgo+' 10:00:00'},
-    {id:13,order_id:5,status:'delivered',updated_by:'office01',note:'受領確認済み',created_at:today+' 09:00:00'},
-    {id:14,order_id:4,status:'memo',updated_by:'kanno',note:'急ぎ。明日中に中国発注してください。',created_at:yesterday+' 16:30:00'},
-  ]);
-  demoSave('projects', [
-    {id:1,name:'新宿ビルLED看板工事',location:'東京都新宿区西新宿1-1-1',client_name:'新宿ビルオーナー',start_date:yesterday,end_date:dayAfter,status:'active',notes:'3階正面看板の取替工事',color:'#6366f1',created_at:twoDaysAgo+' 09:00:00',updated_at:twoDaysAgo+' 09:00:00'},
-    {id:2,name:'渋谷カフェ内装電気工事',location:'東京都渋谷区道玄坂2-3-4',client_name:'カフェBeans',start_date:today,end_date:threeDays,status:'active',notes:'店内照明のLED化工事',color:'#10b981',created_at:yesterday+' 10:00:00',updated_at:yesterday+' 10:00:00'},
-    {id:3,name:'品川オフィスサイン設置',location:'東京都品川区東品川5-6-7',client_name:'品川テック株式会社',start_date:tomorrow,end_date:threeDays,status:'active',notes:'エントランスサイン新設',color:'#f59e0b',created_at:yesterday+' 14:00:00',updated_at:yesterday+' 14:00:00'},
-    {id:4,name:'横浜倉庫LED照明改修',location:'神奈川県横浜市中区1-2-3',client_name:'横浜ロジ',start_date:twoDaysAgo,end_date:yesterday,status:'completed',notes:'完了',color:'#8b5cf6',created_at:twoDaysAgo+' 08:00:00',updated_at:yesterday+' 17:00:00'},
-  ]);
-  demoSave('schedule_entries', [
-    {id:1,project_id:1,title:'新宿ビル看板撤去',date:yesterday,start_time:'09:00',end_time:'17:00',notes:'安全帯持参',created_by:'kanno',created_at:twoDaysAgo+' 09:00:00',updated_at:twoDaysAgo+' 09:00:00',staff:['staff01','staff03','staff05']},
-    {id:2,project_id:1,title:'新宿ビル新看板取付',date:today,start_time:'09:00',end_time:'17:00',notes:'',created_by:'kanno',created_at:twoDaysAgo+' 09:00:00',updated_at:twoDaysAgo+' 09:00:00',staff:['staff01','staff03','staff05']},
-    {id:3,project_id:2,title:'渋谷カフェ配線工事',date:today,start_time:'10:00',end_time:'18:00',notes:'店舗営業前に搬入',created_by:'office01',created_at:yesterday+' 10:00:00',updated_at:yesterday+' 10:00:00',staff:['staff02','staff04']},
-    {id:4,project_id:2,title:'渋谷カフェLED取付',date:tomorrow,start_time:'09:00',end_time:'16:00',notes:'',created_by:'office01',created_at:yesterday+' 10:00:00',updated_at:yesterday+' 10:00:00',staff:['staff02','staff04','staff06']},
-    {id:5,project_id:3,title:'品川オフィスサイン設置',date:tomorrow,start_time:'08:30',end_time:'17:00',notes:'大型サイン。クレーン手配済み',created_by:'kanno',created_at:yesterday+' 14:00:00',updated_at:yesterday+' 14:00:00',staff:['staff07','staff08','staff09']},
-    {id:6,project_id:null,title:'車両点検',date:today,start_time:'08:00',end_time:'09:00',notes:'2号車の定期点検',created_by:'office01',created_at:yesterday+' 16:00:00',updated_at:yesterday+' 16:00:00',staff:['staff10']},
-    {id:7,project_id:1,title:'新宿ビル最終確認・引渡し',date:dayAfter,start_time:'10:00',end_time:'12:00',notes:'オーナー立会い',created_by:'kanno',created_at:twoDaysAgo+' 09:00:00',updated_at:twoDaysAgo+' 09:00:00',staff:['staff01','kanno']},
-  ]);
-  demoSave('attendance', [
-    {id:1,user_id:'staff01',date:today,clock_in:'08:15',clock_out:'',clock_in_lat:35.6895,clock_in_lng:139.6917,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:today+' 08:15:00'},
-    {id:2,user_id:'staff02',date:today,clock_in:'08:30',clock_out:'',clock_in_lat:35.6580,clock_in_lng:139.7016,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:today+' 08:30:00'},
-    {id:3,user_id:'staff03',date:today,clock_in:'08:10',clock_out:'',clock_in_lat:35.6895,clock_in_lng:139.6917,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:today+' 08:10:00'},
-    {id:4,user_id:'staff04',date:today,clock_in:'08:45',clock_out:'',clock_in_lat:35.6580,clock_in_lng:139.7016,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:today+' 08:45:00'},
-    {id:5,user_id:'staff05',date:today,clock_in:'08:20',clock_out:'',clock_in_lat:35.6895,clock_in_lng:139.6917,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:today+' 08:20:00'},
-    {id:6,user_id:'office01',date:today,clock_in:'09:00',clock_out:'',clock_in_lat:35.6812,clock_in_lng:139.7671,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:today+' 09:00:00'},
-    {id:7,user_id:'staff01',date:yesterday,clock_in:'08:00',clock_out:'17:30',clock_in_lat:35.6895,clock_in_lng:139.6917,clock_out_lat:35.6895,clock_out_lng:139.6917,notes:'',created_at:yesterday+' 08:00:00'},
-    {id:8,user_id:'staff02',date:yesterday,clock_in:'08:15',clock_out:'17:00',clock_in_lat:35.6580,clock_in_lng:139.7016,clock_out_lat:35.6580,clock_out_lng:139.7016,notes:'',created_at:yesterday+' 08:15:00'},
-  ]);
-  demoSave('gps_logs', [
-    {id:1,user_id:'staff01',lat:35.6895,lng:139.6917,accuracy:15,recorded_at:today+' 08:15:00'},
-    {id:2,user_id:'staff02',lat:35.6580,lng:139.7016,accuracy:20,recorded_at:today+' 08:30:00'},
-    {id:3,user_id:'staff03',lat:35.6900,lng:139.6920,accuracy:12,recorded_at:today+' 08:10:00'},
-    {id:4,user_id:'staff04',lat:35.6585,lng:139.7020,accuracy:18,recorded_at:today+' 08:45:00'},
-    {id:5,user_id:'staff05',lat:35.6898,lng:139.6915,accuracy:10,recorded_at:today+' 08:20:00'},
-  ]);
-  demoSave('instructions', [
-    {id:1,from_user:'kanno',to_user:'staff01',subject:'明日の新宿ビル工事について',body:'明日は8時半に現場集合。安全帯とヘルメットを忘れずに。',is_read:1,read_at:yesterday+' 18:00:00',created_at:yesterday+' 17:00:00'},
-    {id:2,from_user:'kanno',to_user:'staff02',subject:'渋谷カフェの件',body:'渋谷カフェの工事は本日10時開始。店舗営業前に資材搬入を完了してください。',is_read:0,read_at:'',created_at:today+' 07:30:00'},
-    {id:3,from_user:'office01',to_user:'staff07',subject:'品川オフィスの図面確認',body:'品川オフィスの図面を更新しました。確認お願いします。',is_read:0,read_at:'',created_at:today+' 09:00:00'},
-    {id:4,from_user:'kanno',to_user:'office01',subject:'今月の請求書作成',body:'新宿ビルの工事が完了したら請求書を作成してください。',is_read:1,read_at:today+' 09:30:00',created_at:today+' 08:00:00'},
-  ]);
-  demoSave('site_notes', [
-    {id:1,project_id:1,user_id:'staff01',body:'1階看板の撤去完了。2階は明日作業予定。',photo_path:'',created_at:yesterday+' 12:00:00'},
-    {id:2,project_id:1,user_id:'staff03',body:'2階の配線が古いため、追加の電線が必要です。50m程度。',photo_path:'',created_at:yesterday+' 15:30:00'},
-    {id:3,project_id:1,user_id:'kanno',body:'了解。電線は事務所に在庫あり。明日持っていきます。',photo_path:'',created_at:yesterday+' 16:00:00'},
-    {id:4,project_id:2,user_id:'office01',body:'カフェオーナーから：営業中の騒音は最小限にとのこと。',photo_path:'',created_at:today+' 08:00:00'},
-  ]);
-  demoSave('invoices', [
-    {id:1,doc_type:'invoice',doc_number:'AGO-INV-20260414-001',project_id:4,client_name:'横浜ロジ',subject:'横浜倉庫LED照明改修工事',amount:580000,tax:58000,total:638000,issue_date:yesterday,due_date:threeDays,status:'sent',notes:'',created_by:'office01',created_at:yesterday+' 17:00:00',updated_at:yesterday+' 17:00:00',items:[{description:'LED照明器具取付（40台）',qty:40,unit_price:8000,amount:320000},{description:'配線工事一式',qty:1,unit_price:180000,amount:180000},{description:'撤去・処分費',qty:1,unit_price:80000,amount:80000}]},
-    {id:2,doc_type:'invoice',doc_number:'AGO-INV-20260416-001',project_id:1,client_name:'新宿ビルオーナー',subject:'新宿ビルLED看板工事',amount:950000,tax:95000,total:1045000,issue_date:today,due_date:'',status:'draft',notes:'工事完了後に発行予定',created_by:'office01',created_at:today+' 10:00:00',updated_at:today+' 10:00:00',items:[{description:'LED看板製作・取付',qty:1,unit_price:750000,amount:750000},{description:'既存看板撤去・処分',qty:1,unit_price:200000,amount:200000}]},
-    {id:3,doc_type:'purchase_order',doc_number:'AGO-PO-20260415-001',project_id:2,client_name:'LED卸売センター',subject:'渋谷カフェ用LED照明部材',amount:120000,tax:12000,total:132000,issue_date:yesterday,due_date:'',status:'sent',notes:'',created_by:'office01',created_at:yesterday+' 11:00:00',updated_at:yesterday+' 11:00:00',items:[{description:'ダウンライトLED 60W相当',qty:20,unit_price:3500,amount:70000},{description:'間接照明用LEDテープ 5m',qty:10,unit_price:5000,amount:50000}]},
-  ]);
-  demoSave('expenses', [
-    {id:1,project_id:1,category:'材料費',description:'看板取付用ボルト・ナットセット',amount:8500,expense_date:yesterday,paid_by:'staff01',notes:'',created_by:'staff01',created_at:yesterday+' 12:00:00'},
-    {id:2,project_id:1,category:'交通費',description:'新宿現場 高速代',amount:1200,expense_date:yesterday,paid_by:'staff01',notes:'首都高',created_by:'staff01',created_at:yesterday+' 08:30:00'},
-    {id:3,project_id:2,category:'材料費',description:'配線用VVFケーブル 100m',amount:15000,expense_date:today,paid_by:'staff02',notes:'',created_by:'staff02',created_at:today+' 09:00:00'},
-    {id:4,project_id:null,category:'工具費',description:'インパクトドライバー替えビット',amount:3200,expense_date:today,paid_by:'staff05',notes:'消耗品',created_by:'staff05',created_at:today+' 07:00:00'},
-    {id:5,project_id:null,category:'消耗品費',description:'養生テープ・ブルーシート',amount:4800,expense_date:yesterday,paid_by:'office01',notes:'',created_by:'office01',created_at:yesterday+' 10:00:00'},
-  ]);
-  localStorage.setItem('ago_demo_initialized3', '1');
-}
-
+// ── API ─────────────────────────────────────────────────────
 async function apiFetch(url, options={}) {
-  const params = new URL(url, 'http://x').searchParams;
-  const action = params.get('action')||'';
-  const body = options.body ? JSON.parse(options.body) : {};
-  const now = new Date();
-  const nowStr = now.toISOString().replace('T',' ').substring(0,19);
-  const todayStr = formatDate(now);
-  switch(action) {
-    case 'list': return {success:true, orders:demoDB('orders',[])};
-    case 'get': { const id=parseInt(params.get('id')); const o=demoDB('orders',[]).find(x=>x.id===id); return o?{success:true,order:o,logs:demoDB('status_log',[]).filter(l=>l.order_id===id)}:{success:false}; }
-    case 'create': { const os=demoDB('orders',[]); const seq=os.length+1; const no={id:seq,order_code:`AGO-${todayStr.replace(/-/g,'')}-${String(seq).padStart(3,'0')}`,source:'material',product:body.product,qty:body.qty||1,amount:body.amount||0,buyer_name:body.buyer_name||'',buyer_email:body.buyer_email||'',buyer_note:body.buyer_note||'',status:'received',created_at:nowStr,updated_at:nowStr}; os.push(no); demoSave('orders',os); const ls=demoDB('status_log',[]); ls.push({id:ls.length+1,order_id:no.id,status:'received',updated_by:body.updated_by||'',note:'',created_at:nowStr}); demoSave('status_log',ls); return {success:true,id:no.id,order_code:no.order_code}; }
-    case 'update_status': { const os=demoDB('orders',[]); const i=os.findIndex(o=>o.id===body.id); if(i<0)return{success:false}; os[i].status=body.status; os[i].updated_at=nowStr; demoSave('orders',os); const ls=demoDB('status_log',[]); ls.push({id:ls.length+1,order_id:body.id,status:body.status,updated_by:body.updated_by||'',note:body.note||'',created_at:nowStr}); demoSave('status_log',ls); return {success:true}; }
-    case 'add_memo': { const ls=demoDB('status_log',[]); ls.push({id:ls.length+1,order_id:body.id,status:'memo',updated_by:body.updated_by||'',note:body.note||'',created_at:nowStr}); demoSave('status_log',ls); return {success:true}; }
-    case 'delete': { const did=parseInt(params.get('id'))||body.id; demoSave('orders',demoDB('orders',[]).filter(o=>o.id!==did)); return {success:true}; }
-    case 'projects_list': return {success:true,projects:demoDB('projects',[]).sort((a,b)=>(a.status==='active'?0:1)-(b.status==='active'?0:1))};
-    case 'project_create': { const ps=demoDB('projects',[]); const np={id:ps.length+1,...body,created_at:nowStr,updated_at:nowStr}; ps.push(np); demoSave('projects',ps); return {success:true,id:np.id}; }
-    case 'project_update': { const ps=demoDB('projects',[]); const pi=ps.findIndex(p=>p.id===body.id); if(pi>=0){Object.assign(ps[pi],body,{updated_at:nowStr});demoSave('projects',ps);} return {success:true}; }
-    case 'project_delete': { demoSave('projects',demoDB('projects',[]).filter(p=>p.id!==body.id)); return {success:true}; }
-    case 'schedule_list': { const from=params.get('from')||'2000-01-01',to=params.get('to')||'2099-12-31'; const es=demoDB('schedule_entries',[]).filter(e=>e.date>=from&&e.date<=to); const ps=demoDB('projects',[]); es.forEach(e=>{if(e.project_id){const p=ps.find(pp=>pp.id===e.project_id);if(p){e.project_name=p.name;e.project_color=p.color;e.project_location=p.location;}}}); return {success:true,entries:es}; }
-    case 'schedule_by_user': { const uid=params.get('user_id'),from=params.get('from')||'2000-01-01',to=params.get('to')||'2099-12-31'; const es=demoDB('schedule_entries',[]).filter(e=>e.date>=from&&e.date<=to&&e.staff&&e.staff.includes(uid)); const ps=demoDB('projects',[]); es.forEach(e=>{if(e.project_id){const p=ps.find(pp=>pp.id===e.project_id);if(p){e.project_name=p.name;e.project_color=p.color;}}}); return {success:true,entries:es}; }
-    case 'schedule_by_project': { const pid=parseInt(params.get('project_id')); const es=demoDB('schedule_entries',[]).filter(e=>e.project_id===pid); const ps=demoDB('projects',[]); es.forEach(e=>{if(e.project_id){const p=ps.find(pp=>pp.id===e.project_id);if(p){e.project_name=p.name;e.project_color=p.color;}}}); return {success:true,entries:es}; }
-    case 'schedule_create': { const es=demoDB('schedule_entries',[]); es.push({id:es.length+1,project_id:body.project_id?parseInt(body.project_id):null,title:body.title,date:body.date,start_time:body.start_time||'',end_time:body.end_time||'',notes:body.notes||'',staff:body.staff||[],created_by:body.created_by||'',created_at:nowStr,updated_at:nowStr}); demoSave('schedule_entries',es); return {success:true}; }
-    case 'schedule_update': { const es=demoDB('schedule_entries',[]); const ei=es.findIndex(e=>e.id===body.id); if(ei>=0){Object.assign(es[ei],body,{project_id:body.project_id?parseInt(body.project_id):null,updated_at:nowStr});demoSave('schedule_entries',es);} return {success:true}; }
-    case 'schedule_delete': { demoSave('schedule_entries',demoDB('schedule_entries',[]).filter(e=>e.id!==body.id)); return {success:true}; }
-    case 'attendance_today': { const uid=params.get('user_id'); return {success:true,record:demoDB('attendance',[]).find(r=>r.user_id===uid&&r.date===todayStr)||null}; }
-    case 'attendance_list': { const uid=params.get('user_id'),mo=params.get('month')||''; return {success:true,records:demoDB('attendance',[]).filter(r=>r.user_id===uid&&r.date.startsWith(mo))}; }
-    case 'attendance_all': { const d=params.get('date')||todayStr; return {success:true,records:demoDB('attendance',[]).filter(r=>r.date===d)}; }
-    case 'clock_in': { const recs=demoDB('attendance',[]); if(recs.find(r=>r.user_id===body.user_id&&r.date===todayStr))return{success:false,message:'既に出勤済み'}; const t=now.toTimeString().substring(0,8); recs.push({id:recs.length+1,user_id:body.user_id,date:todayStr,clock_in:t,clock_out:'',clock_in_lat:body.lat,clock_in_lng:body.lng,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:nowStr}); demoSave('attendance',recs); return {success:true,clock_in:t}; }
-    case 'clock_out': { const recs=demoDB('attendance',[]); const ri=recs.findIndex(r=>r.user_id===body.user_id&&r.date===todayStr&&r.clock_out===''); if(ri<0)return{success:false,message:'出勤記録なし'}; const t=now.toTimeString().substring(0,8); recs[ri].clock_out=t; demoSave('attendance',recs); return {success:true,clock_out:t}; }
-    case 'gps_log': { const ls=demoDB('gps_logs',[]); ls.push({id:ls.length+1,user_id:body.user_id,lat:body.lat,lng:body.lng,accuracy:body.accuracy||null,recorded_at:nowStr}); demoSave('gps_logs',ls); return {success:true}; }
-    case 'gps_latest': { const ls=demoDB('gps_logs',[]).filter(l=>l.recorded_at>=todayStr+' 00:00:00'); const lat={}; ls.forEach(l=>{if(!lat[l.user_id]||l.id>lat[l.user_id].id)lat[l.user_id]=l;}); return {success:true,locations:Object.values(lat)}; }
-    case 'instructions_list': { const uid=params.get('user_id'); return {success:true,instructions:demoDB('instructions',[]).filter(i=>i.to_user===uid||i.from_user===uid).sort((a,b)=>b.created_at.localeCompare(a.created_at))}; }
-    case 'instruction_send': { const its=demoDB('instructions',[]); its.push({id:its.length+1,...body,is_read:0,read_at:'',created_at:nowStr}); demoSave('instructions',its); return {success:true}; }
-    case 'instruction_read': { const its=demoDB('instructions',[]); const ii=its.findIndex(i=>i.id===body.id); if(ii>=0){its[ii].is_read=1;its[ii].read_at=nowStr;demoSave('instructions',its);} return {success:true}; }
-    case 'site_notes_list': { const pid=parseInt(params.get('project_id')); return {success:true,notes:demoDB('site_notes',[]).filter(n=>n.project_id===pid).sort((a,b)=>b.created_at.localeCompare(a.created_at))}; }
-    case 'site_note_create': { const ns=demoDB('site_notes',[]); ns.push({id:ns.length+1,project_id:parseInt(body.project_id),user_id:body.user_id||'',body:body.body,photo_path:'',created_at:nowStr}); demoSave('site_notes',ns); return {success:true}; }
-    case 'invoices_list': { const dt=params.get('doc_type'); let its=demoDB('invoices',[]); if(dt)its=its.filter(i=>i.doc_type===dt); return {success:true,invoices:its.sort((a,b)=>b.created_at.localeCompare(a.created_at))}; }
-    case 'invoice_get': { return {success:true,invoice:demoDB('invoices',[]).find(i=>i.id===parseInt(params.get('id')))}; }
-    case 'invoice_create': { const invs=demoDB('invoices',[]); const pf=body.doc_type==='purchase_order'?'PO':'INV'; const sq=invs.length+1; invs.push({id:sq,doc_number:`AGO-${pf}-${todayStr.replace(/-/g,'')}-${String(sq).padStart(3,'0')}`,...body,total:(body.amount||0)+(body.tax||0),created_at:nowStr,updated_at:nowStr}); demoSave('invoices',invs); return {success:true}; }
-    case 'invoice_update': { const invs=demoDB('invoices',[]); const ii=invs.findIndex(i=>i.id===body.id); if(ii>=0){Object.assign(invs[ii],body,{total:(body.amount||0)+(body.tax||0),updated_at:nowStr});demoSave('invoices',invs);} return {success:true}; }
-    case 'expenses_list': { const mo=params.get('month')||''; let ex=demoDB('expenses',[]); if(mo)ex=ex.filter(e=>e.expense_date.startsWith(mo)); return {success:true,expenses:ex.sort((a,b)=>b.expense_date.localeCompare(a.expense_date))}; }
-    case 'expense_create': { const ex=demoDB('expenses',[]); ex.push({id:ex.length+1,...body,created_at:nowStr}); demoSave('expenses',ex); return {success:true}; }
-    case 'finance_summary': { const mo=params.get('month')||todayStr.substring(0,7); const invs=demoDB('invoices',[]); const ex=demoDB('expenses',[]); const rev=invs.filter(i=>i.doc_type==='invoice'&&(i.status==='sent'||i.status==='paid')&&(i.issue_date||'').startsWith(mo)).reduce((s,i)=>s+(i.total||0),0); const exp=ex.filter(e=>(e.expense_date||'').startsWith(mo)).reduce((s,e)=>s+(e.amount||0),0); const po=invs.filter(i=>i.doc_type==='purchase_order'&&(i.issue_date||'').startsWith(mo)).reduce((s,i)=>s+(i.total||0),0); return {success:true,month:mo,revenue:rev,expenses:exp,purchase_orders:po,profit:rev-exp}; }
-    default: return {success:false,message:'不明: '+action};
-  }
+  const r = await fetch(url, { headers:{'Content-Type':'application/json'}, ...options });
+  return r.json();
 }
 
 // ── データ取得 ───────────────────────────────────────────────
@@ -1900,7 +1718,11 @@ function escHtml(str) {
 
 // ── PWA / Service Worker / Push通知 ─────────────────────────
 async function registerSW() {
-  return;
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    await navigator.serviceWorker.register('sw.js');
+    updateNotifBtn();
+  } catch(e) { console.log('SW register:', e); }
 }
 
 function updateNotifBtn() {
@@ -3314,7 +3136,7 @@ async function renderTimeline() {
   const container = document.getElementById('tl-chart');
 
   // 時間ラベル行
-  let html = '<div class="tl-chart-inner"><div class="tl-hour-labels">';
+  let html = '<div class="tl-hour-labels">';
   for (let h = TL_START_HOUR; h < TL_END_HOUR; h++) {
     html += `<span class="tl-hour-lbl">${h}:00</span>`;
   }
@@ -3370,7 +3192,6 @@ async function renderTimeline() {
     html += '</div></div>'; // tl-row-bar, tl-row
   });
 
-  html += '</div>'; // tl-chart-inner
   container.innerHTML = html;
 }
 
@@ -3667,7 +3488,6 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
 });
 
 // ── 初期化 ───────────────────────────────────────────────────
-initDemoData();
 setLang(lang);
 loadOrders();
 setInterval(loadOrders, 30000);
