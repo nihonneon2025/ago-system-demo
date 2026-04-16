@@ -1,0 +1,3680 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f172a">
+<title>AGO SYSTEM MANAGER | デモ版</title>
+<script>
+/** config.js インライン埋め込み（デモ用・スマホ対応） */
+const APP_CONFIG = {
+  companyName: '株式会社AGOグループ',
+  appName: 'AGO SYSTEM MANAGER',
+  shortName: 'AGO',
+  theme: {
+    bg:'#0f172a',surface:'#1e293b',card:'#263147',border:'#334155',
+    primary:'#6366f1',accent:'#818cf8',text:'#f1f5f9',muted:'#94a3b8',
+    green:'#10b981',yellow:'#f59e0b',blue:'#3b82f6',purple:'#8b5cf6',
+    orange:'#f97316',red:'#ef4444',
+  },
+  users: {
+    kanno:{name:'菅野',role:'master'},
+    office01:{name:'事務01',role:'office'},office02:{name:'事務02',role:'office'},office03:{name:'事務03',role:'office'},
+    staff01:{name:'スタッフ01',role:'field'},staff02:{name:'スタッフ02',role:'field'},staff03:{name:'スタッフ03',role:'field'},
+    staff04:{name:'スタッフ04',role:'field'},staff05:{name:'スタッフ05',role:'field'},staff06:{name:'スタッフ06',role:'field'},
+    staff07:{name:'スタッフ07',role:'field'},staff08:{name:'スタッフ08',role:'field'},staff09:{name:'スタッフ09',role:'field'},
+    staff10:{name:'スタッフ10',role:'field'},
+    china01:{name:'中国01',role:'china'},china02:{name:'中国02',role:'china'},
+  },
+  masterPin: 'kanno0',
+  rolePermissions: {
+    master:{orders:true,schedule:true,accounting:true,attendance:true,notifications:true,gps:true,featureControl:true,userManagement:true,masterRevert:true,masterDelete:true},
+    office:{orders:true,schedule:true,accounting:true,attendance:true,notifications:true,gps:false,featureControl:false,userManagement:false,masterRevert:false,masterDelete:false},
+    field:{orders:true,schedule:true,accounting:false,attendance:true,notifications:true,gps:true,featureControl:false,userManagement:false,masterRevert:false,masterDelete:false},
+    china:{orders:true,schedule:false,accounting:false,attendance:false,notifications:true,gps:false,featureControl:false,userManagement:false,masterRevert:false,masterDelete:false},
+  },
+  orderStatuses:['received','ordered_china','factory_confirmed','shipping_prep','in_transit','delivered'],
+  cancelStatuses:['cancel_customer','cancel_factory'],
+  languages:['ja','zh'],defaultLang:'ja',
+  vapidPublicKey:'REPLACE_WITH_AGO_VAPID_PUBLIC_KEY',
+  apiBase:'./api.php',subscribeEndpoint:'./subscribe.php',
+  gps:{enableOnClockIn:true,disableOnClockOut:true,trackingInterval:300},
+  attendance:{enabled:true,requireGps:true},
+};
+</script>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--card:#263147;--border:#334155;
+  --primary:#6366f1;--accent:#818cf8;--text:#f1f5f9;--muted:#94a3b8;
+  --green:#10b981;--yellow:#f59e0b;--blue:#3b82f6;--purple:#8b5cf6;
+  --orange:#f97316;--red:#ef4444;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden;width:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh}
+/* Header */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 10px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:6px}
+.logo{font-weight:700;font-size:16px;color:var(--accent);display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;flex-shrink:0}
+.logo span{font-size:18px}
+.master-badge{background:#ef4444;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;display:none}
+.master-badge.visible{display:inline}
+.header-right{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.lang-btn{background:var(--card);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:8px;cursor:pointer;font-size:12px;transition:all .2s}
+.lang-btn:hover,.lang-btn.active{background:var(--primary);border-color:var(--primary)}
+.notif-btn{background:var(--card);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:8px;cursor:pointer;font-size:14px;transition:all .2s;line-height:1}
+.notif-btn:hover{background:var(--primary);border-color:var(--primary)}
+.notif-btn.enabled{color:#10b981;border-color:#10b981}
+.notif-btn.denied{color:#ef4444;border-color:#ef4444;cursor:not-allowed}
+/* Search */
+.search-bar{padding:12px 16px 4px;position:relative}
+.search-input{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px 14px 10px 38px;border-radius:10px;font-size:15px;outline:none;transition:border-color .2s}
+.search-input:focus{border-color:var(--primary)}
+.search-icon{position:absolute;left:28px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px;pointer-events:none}
+/* Tab nav */
+.tab-nav{display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tab-nav::-webkit-scrollbar{display:none}
+.tab-btn{background:none;border:none;color:var(--muted);padding:6px 8px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;flex-shrink:0}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+/* Stats */
+.stats{display:flex;gap:8px;padding:10px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 14px;min-width:70px;text-align:center;flex-shrink:0}
+.stat-num{font-size:22px;font-weight:700;color:var(--accent)}
+.stat-label{font-size:11px;color:var(--muted);margin-top:2px}
+/* Filter */
+.filter-bar{padding:0 16px 12px;display:flex;gap:8px;overflow-x:auto}
+.filter-btn{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:20px;cursor:pointer;font-size:13px;white-space:nowrap;transition:all .2s}
+.filter-btn:hover,.filter-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+/* Order grid */
+.order-grid{padding:0 10px 100px;display:grid;grid-template-columns:1fr;gap:8px}
+@media(min-width:640px){.order-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;padding:0 16px 100px}}
+.order-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all .2s;position:relative}
+.order-card:hover{border-color:var(--primary);transform:translateY(-2px)}
+.order-card.stale-warn{border-color:var(--orange)}
+.order-card.stale-crit{border-color:var(--red);animation:pulse-border 2s ease-in-out infinite}
+@keyframes pulse-border{0%,100%{border-color:var(--red)}50%{border-color:#ff8888}}
+.order-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.order-code{font-weight:700;font-size:15px;color:var(--accent)}
+.source-badge{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.source-catalog{background:#1e3a5f;color:#60a5fa}
+.source-amazon{background:#3d2500;color:#f59e0b}
+.order-product{font-size:14px;margin-bottom:8px;line-height:1.4}
+.order-card-bottom{display:flex;justify-content:space-between;align-items:center}
+.status-badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:#fff}
+.order-meta{font-size:11px;color:var(--muted)}
+.stale-badge{position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px}
+.stale-badge.warn{background:rgba(249,115,22,.2);color:var(--orange)}
+.stale-badge.crit{background:rgba(239,68,68,.2);color:var(--red)}
+/* FAB */
+.fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--primary);color:#fff;border:none;font-size:28px;cursor:pointer;box-shadow:0 4px 20px rgba(99,102,241,.4);transition:all .2s;z-index:200;display:flex;align-items:center;justify-content:center}
+.fab:hover{background:var(--accent);transform:scale(1.1)}
+/* Detail view */
+#detail-view{display:none;position:fixed;inset:0;background:var(--bg);z-index:300;overflow-y:auto}
+.detail-header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0}
+.back-btn{background:none;border:none;color:var(--accent);cursor:pointer;font-size:24px;padding:4px}
+.detail-body{padding:20px 16px}
+.detail-info{background:var(--card);border-radius:12px;padding:16px;margin-bottom:20px}
+.info-row{display:flex;gap:8px;margin-bottom:8px;font-size:14px}
+.info-label{color:var(--muted);min-width:80px}
+.info-value{color:var(--text);word-break:break-all}
+/* Timeline */
+.timeline{position:relative;padding-left:24px}
+.timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--border)}
+.tl-item{position:relative;margin-bottom:20px}
+.tl-dot{position:absolute;left:-20px;top:2px;width:16px;height:16px;border-radius:50%;border:2px solid var(--border);background:var(--bg)}
+.tl-dot.done{background:var(--green);border-color:var(--green)}
+.tl-dot.current{background:var(--primary);border-color:var(--primary);box-shadow:0 0 0 4px rgba(99,102,241,.3)}
+.tl-dot.cancel{background:var(--red);border-color:var(--red)}
+.tl-dot.future{background:var(--bg);border-color:var(--border)}
+.tl-label{font-weight:600;font-size:14px}
+.tl-label.done{color:var(--green)}
+.tl-label.current{color:var(--accent)}
+.tl-label.cancel{color:var(--red)}
+.tl-label.future{color:var(--muted)}
+.tl-meta{font-size:12px;color:var(--muted);margin-top:2px}
+/* Advance button */
+.advance-btn{display:block;width:100%;margin-top:24px;padding:16px;background:var(--primary);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s}
+.advance-btn:hover{background:var(--accent)}
+.advance-btn:disabled{opacity:.4;cursor:not-allowed}
+/* Cancel button */
+.cancel-btn{display:block;width:100%;margin-top:12px;padding:14px;background:rgba(239,68,68,.15);color:var(--red);border:1px solid var(--red);border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s}
+.cancel-btn:hover{background:rgba(239,68,68,.25)}
+/* Master buttons */
+.master-btn-row{display:flex;gap:10px;margin-top:12px}
+.master-revert-btn{flex:1;padding:12px;background:rgba(245,158,11,.15);color:var(--yellow);border:1px solid var(--yellow);border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+.master-revert-btn:hover{background:rgba(245,158,11,.25)}
+.master-delete-btn{flex:1;padding:12px;background:rgba(239,68,68,.15);color:var(--red);border:1px solid var(--red);border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+.master-delete-btn:hover{background:rgba(239,68,68,.3)}
+/* Memo section */
+.memo-section{background:var(--card);border-radius:12px;padding:16px;margin-top:20px}
+.memo-section h4{font-size:13px;color:var(--muted);margin-bottom:12px}
+.memo-item{background:var(--surface);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:13px}
+.memo-item-meta{font-size:11px;color:var(--muted);margin-top:4px}
+.memo-add{display:flex;gap:8px;margin-top:12px}
+.memo-input{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:14px;outline:none}
+.memo-input:focus{border-color:var(--primary)}
+.memo-send-btn{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:14px;white-space:nowrap}
+/* Customer list */
+#customer-view{display:none;padding:16px 16px 100px}
+.customer-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all .2s}
+.customer-card:hover{border-color:var(--primary)}
+.customer-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.customer-name{font-weight:700;font-size:15px}
+.customer-badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
+.badge-new{background:rgba(16,185,129,.2);color:var(--green)}
+.badge-repeat{background:rgba(139,92,246,.2);color:var(--purple)}
+.customer-meta{font-size:12px;color:var(--muted)}
+/* Monthly stats */
+#monthly-view{display:none;padding:16px 16px 100px}
+.monthly-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px}
+.monthly-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.monthly-month{font-weight:700;font-size:16px;color:var(--accent)}
+.monthly-count{font-size:13px;color:var(--muted)}
+.monthly-stats-row{display:flex;gap:16px}
+.monthly-stat{text-align:center;flex:1;background:var(--card);border-radius:8px;padding:10px}
+.monthly-stat-num{font-size:22px;font-weight:700;color:var(--accent)}
+.monthly-stat-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:flex-end;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:20px}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:15px;outline:none;transition:border-color .2s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--primary)}
+.form-textarea{resize:vertical;min-height:80px}
+.form-select option{background:var(--surface)}
+.btn-row{display:flex;gap:12px;margin-top:20px}
+.btn-primary{flex:1;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer}
+.btn-danger{flex:1;padding:14px;background:var(--red);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer}
+.btn-secondary{padding:14px 20px;background:var(--card);color:var(--muted);border:1px solid var(--border);border-radius:10px;font-size:16px;cursor:pointer}
+/* Cancel options */
+.cancel-options{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.cancel-option{padding:14px 16px;border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s}
+.cancel-option:hover,.cancel-option.selected{border-color:var(--red);background:rgba(239,68,68,.1)}
+.cancel-option-title{font-weight:600;font-size:15px;color:var(--red)}
+.cancel-option-desc{font-size:12px;color:var(--muted);margin-top:3px}
+/* PIN modal */
+.pin-display{display:flex;gap:8px;justify-content:center;margin:20px 0}
+.pin-dot{width:16px;height:16px;border-radius:50%;background:var(--border);transition:background .2s}
+.pin-dot.filled{background:var(--primary)}
+.pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pin-key{background:var(--card);border:1px solid var(--border);color:var(--text);padding:16px;border-radius:10px;font-size:20px;font-weight:600;cursor:pointer;text-align:center;transition:all .2s}
+.pin-key:hover{background:var(--primary);border-color:var(--primary)}
+.pin-key.clear{color:var(--muted);font-size:14px}
+/* Source selector */
+.source-selector{display:flex;gap:10px}
+.source-option{flex:1;padding:12px;border:2px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;transition:all .2s}
+.source-option.selected{border-color:var(--primary);background:rgba(99,102,241,.15)}
+/* Loading/Empty */
+.loading{text-align:center;padding:40px;color:var(--muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-icon{font-size:48px;margin-bottom:16px}
+/* Toast */
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px 20px;border-radius:10px;font-size:14px;z-index:999;opacity:0;transition:opacity .3s;box-shadow:0 4px 20px rgba(0,0,0,.3);white-space:nowrap}
+.toast.show{opacity:1}
+/* ═══ Schedule ═══ */
+.sch-sub-nav{display:flex;gap:4px;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border)}
+.sch-sub-btn{background:none;border:none;color:var(--muted);padding:6px 14px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.sch-sub-btn:hover{color:var(--text)}
+.sch-sub-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.sch-toolbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:8px}
+.sch-week-nav{display:flex;align-items:center;gap:8px}
+.sch-week-nav button{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:14px;transition:all .2s}
+.sch-week-nav button:hover{background:var(--primary);border-color:var(--primary)}
+.sch-week-label{font-size:14px;font-weight:600;color:var(--accent);min-width:180px;text-align:center}
+.sch-today-btn{background:var(--primary)!important;border-color:var(--primary)!important;color:#fff!important;font-size:12px!important;padding:4px 10px!important}
+/* Gantt-style overview */
+.sch-gantt{overflow-x:auto;padding:0 16px 100px}
+.sch-gantt table{width:100%;border-collapse:collapse;min-width:600px}
+.sch-gantt th{background:var(--surface);border:1px solid var(--border);padding:8px 6px;font-size:12px;color:var(--muted);font-weight:600;text-align:center}
+.sch-gantt th.today{background:var(--primary);color:#fff}
+.sch-gantt td{border:1px solid var(--border);padding:4px;vertical-align:top;min-width:80px;height:48px}
+.sch-gantt .staff-name{background:var(--surface);font-weight:600;font-size:13px;color:var(--text);padding:8px;min-width:90px}
+.sch-cell-entry{display:inline-block;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600;color:#fff;margin:1px;cursor:pointer;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;transition:opacity .2s}
+.sch-cell-entry:hover{opacity:.8}
+/* Project list */
+.sch-project-list{padding:0 16px 100px}
+.sch-project-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;cursor:pointer;transition:all .2s;border-left:4px solid var(--primary)}
+.sch-project-card:hover{border-color:var(--primary);transform:translateY(-1px)}
+.sch-project-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.sch-project-name{font-weight:700;font-size:15px}
+.sch-project-status{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
+.sch-project-status.active{background:rgba(16,185,129,.2);color:var(--green)}
+.sch-project-status.completed{background:rgba(99,102,241,.2);color:var(--accent)}
+.sch-project-meta{font-size:12px;color:var(--muted)}
+/* Personal schedule */
+.sch-personal{padding:0 16px 100px}
+.sch-user-select{background:var(--card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:14px;outline:none}
+.sch-day-block{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.sch-day-header{font-weight:700;font-size:14px;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.sch-day-header.is-today{color:var(--green)}
+.sch-entry-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
+.sch-entry-row:last-child{border-bottom:none}
+.sch-entry-time{font-size:12px;color:var(--muted);min-width:80px}
+.sch-entry-badge{padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;color:#fff}
+.sch-entry-title{font-size:13px;flex:1}
+/* Staff checkbox grid */
+.staff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;margin-top:6px}
+.staff-check{display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--card);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;transition:all .2s}
+.staff-check:hover{border-color:var(--primary)}
+.staff-check input{accent-color:var(--primary)}
+.staff-check.checked{border-color:var(--primary);background:rgba(99,102,241,.1)}
+/* Color picker */
+.color-options{display:flex;gap:6px;flex-wrap:wrap}
+.color-opt{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .2s}
+.color-opt:hover,.color-opt.selected{border-color:#fff;transform:scale(1.15)}
+/* ═══ Timeline Chart ═══ */
+.tl-chart{padding:0 10px 100px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tl-chart-inner{min-width:700px}
+.tl-date-nav{display:flex;align-items:center;gap:8px;padding:0 16px 8px}
+.tl-date-nav button{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:13px}
+.tl-date-nav button:hover{background:var(--primary);border-color:var(--primary)}
+.tl-date-label{font-size:14px;font-weight:600;color:var(--accent);min-width:140px;text-align:center}
+.tl-row{display:flex;align-items:stretch;margin-bottom:2px;min-height:36px}
+.tl-row-name{min-width:80px;max-width:80px;font-size:12px;font-weight:600;color:var(--text);padding:8px 4px 8px 0;display:flex;align-items:center;flex-shrink:0}
+.tl-row-bar{flex:1;position:relative;background:var(--surface);border:1px solid var(--border);border-radius:4px;min-width:0}
+.tl-hour-grid{position:absolute;inset:0;display:flex}
+.tl-hour-line{flex:1;border-right:1px solid var(--border)}
+.tl-hour-line:last-child{border-right:none}
+.tl-entry-bar{position:absolute;top:3px;bottom:3px;border-radius:4px;color:#fff;font-size:10px;font-weight:600;display:flex;align-items:center;padding:0 4px;overflow:hidden;white-space:nowrap;cursor:pointer;z-index:1;transition:opacity .2s;min-width:2px}
+.tl-entry-bar:hover{opacity:.85}
+.tl-hour-labels{display:flex;margin-left:80px;margin-bottom:4px}
+.tl-hour-lbl{flex:1;text-align:center;font-size:10px;color:var(--muted);min-width:40px}
+.tl-now-line{position:absolute;top:0;bottom:0;width:2px;background:var(--red);z-index:2}
+.tl-now-dot{position:absolute;top:-4px;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--red)}
+/* ═══ Attendance ═══ */
+.att-clock{text-align:center;padding:40px 16px 20px}
+.att-time-display{font-size:48px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums;margin-bottom:8px}
+.att-date-display{font-size:14px;color:var(--muted);margin-bottom:24px}
+.att-btn-group{display:flex;gap:16px;justify-content:center;margin-bottom:24px}
+.att-clock-btn{padding:20px 40px;border-radius:16px;font-size:18px;font-weight:700;cursor:pointer;border:2px solid;transition:all .2s;min-width:140px}
+.att-clock-btn.clock-in{background:rgba(16,185,129,.15);color:var(--green);border-color:var(--green)}
+.att-clock-btn.clock-in:hover{background:rgba(16,185,129,.3)}
+.att-clock-btn.clock-out{background:rgba(239,68,68,.15);color:var(--red);border-color:var(--red)}
+.att-clock-btn.clock-out:hover{background:rgba(239,68,68,.3)}
+.att-clock-btn:disabled{opacity:.3;cursor:not-allowed}
+.att-status{font-size:14px;color:var(--muted);margin-bottom:8px}
+.att-status .time{color:var(--text);font-weight:600}
+.att-gps-indicator{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-top:8px}
+.att-gps-indicator.active{background:rgba(16,185,129,.15);color:var(--green)}
+.att-gps-indicator.inactive{background:rgba(148,163,184,.15);color:var(--muted)}
+.att-sub-nav{display:flex;gap:4px;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border)}
+.att-sub-btn{background:none;border:none;color:var(--muted);padding:6px 14px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.att-sub-btn:hover{color:var(--text)}
+.att-sub-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+/* Staff attendance list */
+.att-staff-list{padding:0 16px 100px}
+.att-staff-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px}
+.att-staff-name{font-weight:600;font-size:14px;min-width:80px}
+.att-staff-times{font-size:13px;color:var(--muted);flex:1;text-align:center}
+.att-staff-badge{padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700}
+.att-staff-badge.working{background:rgba(16,185,129,.2);color:var(--green)}
+.att-staff-badge.done{background:rgba(99,102,241,.2);color:var(--accent)}
+.att-staff-badge.absent{background:rgba(148,163,184,.15);color:var(--muted)}
+/* GPS location list */
+.gps-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px}
+.gps-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.gps-card-name{font-weight:600;font-size:14px}
+.gps-card-time{font-size:11px;color:var(--muted)}
+.gps-card-link{font-size:12px;color:var(--blue);text-decoration:none}
+.gps-card-link:hover{text-decoration:underline}
+/* Monthly attendance */
+.att-monthly{padding:0 16px 100px}
+.att-monthly-row{display:flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:6px;font-size:13px}
+.att-monthly-date{min-width:90px;font-weight:600;color:var(--accent)}
+.att-monthly-times{flex:1;color:var(--muted)}
+.att-monthly-hours{min-width:60px;text-align:right;font-weight:600;color:var(--text)}
+.att-monthly-summary{background:var(--card);border-radius:12px;padding:16px;margin-bottom:16px;text-align:center}
+.att-monthly-total{font-size:28px;font-weight:700;color:var(--accent)}
+.att-monthly-total-label{font-size:12px;color:var(--muted);margin-top:2px}
+/* ═══ Instructions ═══ */
+.ins-list{padding:0 16px 100px}
+.ins-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all .2s;position:relative}
+.ins-card:hover{border-color:var(--primary)}
+.ins-card.unread{border-left:4px solid var(--green)}
+.ins-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.ins-subject{font-weight:700;font-size:14px}
+.ins-time{font-size:11px;color:var(--muted)}
+.ins-body-preview{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px}
+.ins-from-to{font-size:11px;color:var(--muted)}
+.ins-badge-unread{background:var(--green);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px}
+.ins-detail{background:var(--card);border-radius:12px;padding:16px;margin:0 16px 12px}
+.ins-detail-subject{font-size:16px;font-weight:700;margin-bottom:12px}
+.ins-detail-body{font-size:14px;line-height:1.7;white-space:pre-wrap;margin-bottom:12px}
+.ins-detail-meta{font-size:12px;color:var(--muted)}
+/* Site notes thread */
+.site-note-thread{padding:0 16px 100px}
+.site-note-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.site-note-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.site-note-user{font-weight:600;font-size:13px;color:var(--accent)}
+.site-note-time{font-size:11px;color:var(--muted)}
+.site-note-body{font-size:14px;line-height:1.6;white-space:pre-wrap}
+.site-note-add{display:flex;gap:8px;padding:8px 16px;position:sticky;bottom:0;background:var(--bg)}
+.site-note-input{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;font-size:14px;outline:none;resize:none;min-height:42px;max-height:120px}
+.site-note-input:focus{border-color:var(--primary)}
+.site-note-send{background:var(--primary);color:#fff;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;white-space:nowrap}
+/* ═══ Accounting ═══ */
+.acc-sub-nav{display:flex;gap:4px;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border)}
+.acc-sub-btn{background:none;border:none;color:var(--muted);padding:6px 14px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.acc-sub-btn:hover{color:var(--text)}
+.acc-sub-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.acc-list{padding:0 16px 100px}
+.acc-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all .2s}
+.acc-card:hover{border-color:var(--primary)}
+.acc-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.acc-doc-number{font-weight:700;font-size:13px;color:var(--accent)}
+.acc-status{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
+.acc-status.draft{background:rgba(148,163,184,.15);color:var(--muted)}
+.acc-status.sent{background:rgba(59,130,246,.2);color:var(--blue)}
+.acc-status.paid{background:rgba(16,185,129,.2);color:var(--green)}
+.acc-subject{font-size:14px;font-weight:600;margin-bottom:4px}
+.acc-meta{font-size:12px;color:var(--muted)}
+.acc-amount{font-weight:700;color:var(--text)}
+/* Summary cards */
+.acc-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;padding:16px}
+.acc-summary-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
+.acc-summary-num{font-size:22px;font-weight:700}
+.acc-summary-label{font-size:11px;color:var(--muted);margin-top:2px}
+/* Expense list */
+.exp-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.exp-info{flex:1}
+.exp-cat{font-size:11px;color:var(--muted);background:var(--card);padding:2px 6px;border-radius:4px;display:inline-block;margin-bottom:4px}
+.exp-desc{font-size:14px;font-weight:600}
+.exp-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.exp-amount{font-size:16px;font-weight:700;color:var(--red);white-space:nowrap}
+/* Invoice items */
+.inv-items-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+.inv-items-table th{background:var(--card);padding:8px;text-align:left;border:1px solid var(--border);color:var(--muted);font-size:12px}
+.inv-items-table td{padding:8px;border:1px solid var(--border)}
+.inv-items-table .num{text-align:right}
+.inv-item-row-input{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+.inv-item-row-input input{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:13px;outline:none}
+.inv-item-row-input .desc{flex:3}
+.inv-item-row-input .qty{flex:1;max-width:60px}
+.inv-item-row-input .price{flex:1;max-width:100px}
+.inv-item-remove{background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:4px}
+/* ═══ Master Control Panel ═══ */
+.master-panel{display:none;background:var(--surface);border:2px solid var(--red);border-radius:12px;margin:12px 16px;padding:16px}
+.master-panel.visible{display:block}
+.master-panel-title{font-size:14px;font-weight:700;color:var(--red);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.master-feature-list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.master-feature-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;transition:all .2s}
+.master-feature-item:hover{border-color:var(--primary)}
+.master-feature-item input[type="checkbox"]{accent-color:var(--primary);width:16px;height:16px}
+.master-feature-item.disabled{opacity:.5}
+.master-user-section{margin-top:16px;padding-top:12px;border-top:1px solid var(--border)}
+.master-user-section h5{font-size:13px;color:var(--muted);margin-bottom:8px}
+@media(min-width:600px){
+  .modal{border-radius:20px;margin-bottom:20px}
+  .modal-overlay{align-items:center}
+  .order-grid{padding-bottom:40px}
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo" id="logo-tap" onclick="onLogoTap()">
+    <span style="font-weight:800;font-size:20px;color:var(--primary)">AGO</span>
+    <span id="app-title">SYSTEM MANAGER</span>
+    <span class="master-badge" id="master-badge">MASTER</span>
+  </div>
+  <div class="header-right">
+    <button class="notif-btn" id="notif-btn" onclick="enablePush()" title="プッシュ通知を有効にする">🔔</button>
+    <button class="lang-btn active" id="btn-ja" onclick="setLang('ja')">🇯🇵 日本語</button>
+    <button class="lang-btn" id="btn-zh" onclick="setLang('zh')">🇨🇳 中文</button>
+  </div>
+</header>
+
+<!-- Master Control Panel -->
+<div class="master-panel" id="master-panel">
+  <div class="master-panel-title">🔐 マスター機能制御</div>
+  <div class="master-feature-list" id="master-feature-list"></div>
+  <div class="master-user-section">
+    <h5>ユーザー別 機能制御</h5>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <select class="sch-user-select" id="master-user-select" onchange="renderUserFeatures()" style="min-width:120px"></select>
+    </div>
+    <div class="master-feature-list" id="master-user-features"></div>
+  </div>
+  <div style="margin-top:12px;text-align:right">
+    <button class="btn-secondary" style="padding:6px 14px;font-size:12px" onclick="saveMasterFeatures()">💾 設定を保存</button>
+  </div>
+</div>
+
+<!-- Search Bar -->
+<div class="search-bar" id="search-bar">
+  <span class="search-icon">🔍</span>
+  <input class="search-input" id="search-input" type="search" placeholder="注文番号・商品名・購入者名・メールで検索..." oninput="onSearch()">
+</div>
+
+<!-- Tab Navigation -->
+<div class="tab-nav">
+  <button class="tab-btn active" id="tab-orders" onclick="switchTab('orders')">📦 <span id="tab-orders-lbl">資材注文</span></button>
+  <button class="tab-btn" id="tab-projects" onclick="switchTab('projects')">🏗 <span id="tab-projects-lbl">施工項目</span></button>
+  <button class="tab-btn" id="tab-customers" onclick="switchTab('customers')">👥 <span id="tab-customers-lbl">顧客</span></button>
+  <button class="tab-btn" id="tab-monthly" onclick="switchTab('monthly')">📊 <span id="tab-monthly-lbl">月別</span></button>
+  <button class="tab-btn" id="tab-schedule" onclick="switchTab('schedule')">📅 <span id="tab-schedule-lbl">スケジュール</span></button>
+  <button class="tab-btn" id="tab-attendance" onclick="switchTab('attendance')">⏰ <span id="tab-attendance-lbl">勤怠</span></button>
+  <button class="tab-btn" id="tab-instructions" onclick="switchTab('instructions')">✉ <span id="tab-instructions-lbl">指示</span></button>
+  <button class="tab-btn" id="tab-accounting" onclick="switchTab('accounting')">💰 <span id="tab-accounting-lbl">経理</span></button>
+</div>
+
+<!-- Dashboard / Orders View -->
+<div id="dashboard-view">
+  <div class="stats" id="stats-bar">
+    <div class="stat-card"><div class="stat-num" id="stat-all">-</div><div class="stat-label" id="stat-all-lbl">全件</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-active">-</div><div class="stat-label" id="stat-active-lbl">進行中</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-done">-</div><div class="stat-label" id="stat-done-lbl">完了</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-cancel">-</div><div class="stat-label" id="stat-cancel-lbl">キャンセル</div></div>
+  </div>
+  <div class="filter-bar">
+    <button class="filter-btn active" data-filter="all" id="filter-all" onclick="setFilter(this)">全て</button>
+    <button class="filter-btn" data-filter="active" id="filter-active" onclick="setFilter(this)">進行中</button>
+    <button class="filter-btn" data-filter="delivered" id="filter-delivered" onclick="setFilter(this)">完了</button>
+    <button class="filter-btn" data-filter="cancelled" id="filter-cancelled" onclick="setFilter(this)">キャンセル</button>
+  </div>
+  <div class="order-grid" id="order-grid">
+    <div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>
+  </div>
+</div>
+
+<!-- Customer View -->
+<div id="customer-view"></div>
+
+<!-- Monthly View -->
+<div id="monthly-view"></div>
+
+<!-- Projects (施工項目) View -->
+<div id="projects-view" style="display:none">
+  <div style="padding:12px 16px 8px;display:flex;gap:8px;overflow-x:auto">
+    <button class="filter-btn active" data-pfilter="all" onclick="setProjFilter(this)">全て</button>
+    <button class="filter-btn" data-pfilter="active" onclick="setProjFilter(this)">進行中</button>
+    <button class="filter-btn" data-pfilter="completed" onclick="setProjFilter(this)">完了</button>
+    <button class="filter-btn" data-pfilter="cancelled" onclick="setProjFilter(this)">中止</button>
+  </div>
+  <div id="projects-list-body" style="padding:0 16px 100px"></div>
+  <div id="projects-detail-body" style="display:none;padding:0 16px 100px"></div>
+</div>
+
+<!-- Accounting View -->
+<div id="accounting-view" style="display:none">
+  <div class="acc-sub-nav">
+    <button class="acc-sub-btn active" id="acc-sub-summary" onclick="switchAccSub('summary')">📊 収支</button>
+    <button class="acc-sub-btn" id="acc-sub-invoices" onclick="switchAccSub('invoices')">📄 請求書</button>
+    <button class="acc-sub-btn" id="acc-sub-po" onclick="switchAccSub('po')">📋 発注書</button>
+    <button class="acc-sub-btn" id="acc-sub-expenses" onclick="switchAccSub('expenses')">💸 経費</button>
+  </div>
+
+  <!-- 収支サマリー -->
+  <div id="acc-summary-view">
+    <div style="padding:12px 16px 0;display:flex;align-items:center;gap:8px">
+      <input class="form-input" id="acc-summary-month" type="month" onchange="loadFinanceSummary()" style="max-width:160px">
+    </div>
+    <div class="acc-summary" id="acc-summary-cards"></div>
+  </div>
+
+  <!-- 請求書一覧 -->
+  <div id="acc-invoices-view" style="display:none">
+    <div style="padding:12px 16px 8px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:13px;color:var(--muted);font-weight:600">請求書一覧</span>
+      <button class="btn-secondary" style="padding:6px 12px;font-size:12px" onclick="showInvoiceModal('invoice')">＋ 新規請求書</button>
+    </div>
+    <div class="acc-list" id="acc-invoices-list"></div>
+  </div>
+
+  <!-- 発注書一覧 -->
+  <div id="acc-po-view" style="display:none">
+    <div style="padding:12px 16px 8px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:13px;color:var(--muted);font-weight:600">発注書一覧</span>
+      <button class="btn-secondary" style="padding:6px 12px;font-size:12px" onclick="showInvoiceModal('purchase_order')">＋ 新規発注書</button>
+    </div>
+    <div class="acc-list" id="acc-po-list"></div>
+  </div>
+
+  <!-- 経費一覧 -->
+  <div id="acc-expenses-view" style="display:none">
+    <div style="padding:12px 16px 8px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:13px;color:var(--muted);font-weight:600">経費一覧</span>
+      <button class="btn-secondary" style="padding:6px 12px;font-size:12px" onclick="showExpenseModal()">＋ 経費登録</button>
+    </div>
+    <div style="padding:0 16px 4px">
+      <input class="form-input" id="acc-expense-month" type="month" onchange="loadExpenses()" style="max-width:160px">
+    </div>
+    <div class="acc-list" id="acc-expenses-list"></div>
+  </div>
+</div>
+
+<!-- Instructions View -->
+<div id="instructions-view" style="display:none">
+  <div style="padding:12px 16px 8px;display:flex;align-items:center;gap:8px">
+    <select class="sch-user-select" id="ins-user-select" onchange="loadInstructions()" style="min-width:120px"></select>
+    <button class="btn-secondary" style="padding:8px 14px;font-size:13px" onclick="showInstructionSendModal()">✉ 新規指示</button>
+  </div>
+  <div id="ins-detail-area" style="display:none"></div>
+  <div class="ins-list" id="ins-list"></div>
+</div>
+
+<!-- Attendance View -->
+<div id="attendance-view" style="display:none">
+  <div class="att-sub-nav">
+    <button class="att-sub-btn active" id="att-sub-clock" onclick="switchAttSub('clock')">🕐 打刻</button>
+    <button class="att-sub-btn" id="att-sub-staff" onclick="switchAttSub('staff')">👥 スタッフ状況</button>
+    <button class="att-sub-btn" id="att-sub-gps" onclick="switchAttSub('gps')">📍 位置情報</button>
+    <button class="att-sub-btn" id="att-sub-monthly" onclick="switchAttSub('monthly')">📊 月別集計</button>
+  </div>
+
+  <!-- 打刻画面 -->
+  <div id="att-clock-view">
+    <div class="att-clock">
+      <div class="att-time-display" id="att-current-time">--:--:--</div>
+      <div class="att-date-display" id="att-current-date"></div>
+      <div style="margin-bottom:16px">
+        <label class="form-label" style="text-align:center;margin-bottom:8px">ユーザー選択</label>
+        <select class="sch-user-select" id="att-user-select" onchange="loadAttendanceToday()" style="display:block;margin:0 auto;min-width:160px"></select>
+      </div>
+      <div class="att-btn-group">
+        <button class="att-clock-btn clock-in" id="att-btn-in" onclick="clockIn()">▶ 出勤</button>
+        <button class="att-clock-btn clock-out" id="att-btn-out" onclick="clockOut()" disabled>⏹ 退勤</button>
+      </div>
+      <div class="att-status" id="att-status-in" style="display:none">出勤: <span class="time" id="att-time-in"></span></div>
+      <div class="att-status" id="att-status-out" style="display:none">退勤: <span class="time" id="att-time-out"></span></div>
+      <div id="att-gps-status"></div>
+    </div>
+  </div>
+
+  <!-- スタッフ出退勤状況（管理者用） -->
+  <div id="att-staff-view" style="display:none">
+    <div style="padding:12px 16px 8px;font-size:13px;color:var(--muted);font-weight:600" id="att-staff-date-label"></div>
+    <div class="att-staff-list" id="att-staff-list"></div>
+  </div>
+
+  <!-- GPS位置情報（管理者用） -->
+  <div id="att-gps-view" style="display:none">
+    <div style="padding:12px 16px 8px;font-size:13px;color:var(--muted);font-weight:600">📍 出勤中スタッフの現在位置</div>
+    <div style="padding:0 16px 100px" id="att-gps-list"></div>
+  </div>
+
+  <!-- 月別集計 -->
+  <div id="att-monthly-view" style="display:none">
+    <div style="padding:12px 16px 8px;display:flex;align-items:center;gap:8px">
+      <select class="sch-user-select" id="att-monthly-user" onchange="loadAttendanceMonthly()" style="min-width:120px"></select>
+      <input class="form-input" id="att-monthly-month" type="month" onchange="loadAttendanceMonthly()" style="max-width:160px">
+    </div>
+    <div class="att-monthly" id="att-monthly-body"></div>
+  </div>
+</div>
+
+<!-- Schedule View -->
+<div id="schedule-view" style="display:none">
+  <!-- Sub navigation: 全体 / 現場 / 個人 -->
+  <div class="sch-sub-nav">
+    <button class="sch-sub-btn active" id="sch-sub-overview" onclick="switchSchSub('overview')">👥 全体</button>
+    <button class="sch-sub-btn" id="sch-sub-timeline" onclick="switchSchSub('timeline')">⏱ タイムライン</button>
+    <button class="sch-sub-btn" id="sch-sub-projects" onclick="switchSchSub('projects')">🏗 現場</button>
+    <button class="sch-sub-btn" id="sch-sub-personal" onclick="switchSchSub('personal')">👤 個人</button>
+  </div>
+
+  <!-- Toolbar: week navigation -->
+  <div class="sch-toolbar">
+    <div class="sch-week-nav">
+      <button onclick="schWeekMove(-1)">← 前週</button>
+      <button class="sch-today-btn" onclick="schGoToday()">今日</button>
+      <button onclick="schWeekMove(1)">次週 →</button>
+    </div>
+    <span class="sch-week-label" id="sch-week-label"></span>
+  </div>
+
+  <!-- 全体ビュー (Gantt) -->
+  <div id="sch-overview" class="sch-gantt"></div>
+
+  <!-- タイムラインビュー -->
+  <div id="sch-timeline" style="display:none">
+    <div class="tl-date-nav">
+      <button onclick="tlDateMove(-1)">← 前日</button>
+      <button onclick="tlGoToday()" style="background:var(--primary);border-color:var(--primary);color:#fff;font-size:12px;padding:4px 10px">今日</button>
+      <button onclick="tlDateMove(1)">翌日 →</button>
+      <span class="tl-date-label" id="tl-date-label"></span>
+    </div>
+    <div class="tl-chart" id="tl-chart"></div>
+  </div>
+
+  <!-- 現場ビュー -->
+  <div id="sch-projects" class="sch-project-list" style="display:none"></div>
+
+  <!-- 個人ビュー -->
+  <div id="sch-personal" style="display:none">
+    <div style="padding:0 16px 8px">
+      <select class="sch-user-select" id="sch-user-select" onchange="loadPersonalSchedule()"></select>
+    </div>
+    <div class="sch-personal" id="sch-personal-body"></div>
+  </div>
+</div>
+
+<!-- Detail View -->
+<div id="detail-view">
+  <div class="detail-header">
+    <button class="back-btn" onclick="showDashboard()">←</button>
+    <div style="flex:1"><strong id="detail-code"></strong></div>
+  </div>
+  <div class="detail-body">
+    <div class="detail-info" id="detail-info"></div>
+    <h3 style="margin-bottom:16px;color:var(--muted);font-size:14px" id="tl-heading">ステータス履歴</h3>
+    <div class="timeline" id="timeline"></div>
+    <button class="advance-btn" id="advance-btn" onclick="showAdvanceModal()">次のステータスへ進む →</button>
+    <button class="cancel-btn" id="cancel-btn" onclick="showCancelModal()">🚫 キャンセルする</button>
+    <!-- Master buttons (hidden unless master mode) -->
+    <div class="master-btn-row" id="master-btns" style="display:none">
+      <button class="master-revert-btn" onclick="revertStatus()">⬅ ステータスを戻す</button>
+      <button class="master-delete-btn" onclick="deleteOrder()">🗑 注文を削除</button>
+    </div>
+    <!-- Handover memo section -->
+    <div class="memo-section" id="memo-section">
+      <h4 id="memo-heading">📝 引継ぎメモ</h4>
+      <div id="memo-list"></div>
+      <div class="memo-add">
+        <input class="memo-input" id="memo-input" type="text" placeholder="申し送り事項を入力...">
+        <button class="memo-send-btn" onclick="addMemo()">送信</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FAB -->
+<button class="fab" onclick="onFabClick()" title="新規登録">＋</button>
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="create-modal">
+  <div class="modal">
+    <div class="modal-title" id="create-title">新規資材注文</div>
+    <div class="form-group">
+      <label class="form-label" id="lbl-product">商品名 *</label>
+      <input class="form-input" id="inp-product" type="text" placeholder="例: LED蛍光灯 40W×10本">
+    </div>
+    <div class="form-group" style="display:flex;gap:12px">
+      <div style="flex:1">
+        <label class="form-label" id="lbl-qty">数量</label>
+        <input class="form-input" id="inp-qty" type="number" value="1" min="1">
+      </div>
+      <div style="flex:1">
+        <label class="form-label" id="lbl-amount">金額（円）</label>
+        <input class="form-input" id="inp-amount" type="number" value="0" min="0">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" id="lbl-buyer">購入者名</label>
+      <input class="form-input" id="inp-buyer" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label" id="lbl-email">メール</label>
+      <input class="form-input" id="inp-email" type="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label" id="lbl-note">備考</label>
+      <textarea class="form-textarea" id="inp-note"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="hideModal('create-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="createOrder()" id="lbl-register">登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Advance Modal -->
+<div class="modal-overlay" id="advance-modal">
+  <div class="modal">
+    <div class="modal-title" id="advance-title">ステータスを進める</div>
+    <div id="advance-info" style="background:var(--card);padding:12px;border-radius:8px;margin-bottom:16px;font-size:14px"></div>
+    <div class="form-group">
+      <label class="form-label" id="lbl-memo">メモ（任意）</label>
+      <textarea class="form-textarea" id="inp-memo" placeholder="トラッキング番号など"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="hideModal('advance-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="advanceStatus()" id="lbl-confirm">確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel Modal -->
+<div class="modal-overlay" id="cancel-modal">
+  <div class="modal">
+    <div class="modal-title">🚫 注文キャンセル</div>
+    <div class="cancel-options">
+      <div class="cancel-option selected" id="co-customer" onclick="selectCancelReason('cancel_customer')">
+        <div class="cancel-option-title">顧客都合キャンセル</div>
+        <div class="cancel-option-desc">購入者からのキャンセル依頼、返品など</div>
+      </div>
+      <div class="cancel-option" id="co-factory" onclick="selectCancelReason('cancel_factory')">
+        <div class="cancel-option-title">工場都合キャンセル</div>
+        <div class="cancel-option-desc">在庫不足、製造不可、工場側の問題など</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">キャンセル理由（任意）</label>
+      <textarea class="form-textarea" id="inp-cancel-note" placeholder="詳細を入力..."></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="hideModal('cancel-modal')">戻る</button>
+      <button class="btn-danger" onclick="execCancel()">キャンセルを確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- Master PIN Modal -->
+<div class="modal-overlay" id="pin-modal">
+  <div class="modal" style="text-align:center">
+    <div class="modal-title">🔐 マスター認証</div>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:8px">PINコードを入力してください</p>
+    <div class="pin-display" id="pin-display">
+      <div class="pin-dot" id="pd-0"></div>
+      <div class="pin-dot" id="pd-1"></div>
+      <div class="pin-dot" id="pd-2"></div>
+      <div class="pin-dot" id="pd-3"></div>
+      <div class="pin-dot" id="pd-4"></div>
+      <div class="pin-dot" id="pd-5"></div>
+      <div class="pin-dot" id="pd-6"></div>
+      <div class="pin-dot" id="pd-7"></div>
+    </div>
+    <p id="pin-error" style="color:var(--red);font-size:13px;height:18px;margin-bottom:12px"></p>
+    <div class="pin-keypad">
+      <div class="pin-key" onclick="pinKey('a')">a</div>
+      <div class="pin-key" onclick="pinKey('d')">d</div>
+      <div class="pin-key" onclick="pinKey('e')">e</div>
+      <div class="pin-key" onclick="pinKey('n')">n</div>
+      <div class="pin-key" onclick="pinKey('o')">o</div>
+      <div class="pin-key" onclick="pinKey('r')">r</div>
+      <div class="pin-key" onclick="pinKey('0')">0</div>
+      <div class="pin-key" onclick="pinKey('1')">1</div>
+      <div class="pin-key" onclick="pinKey('2')">2</div>
+      <div class="pin-key clear" onclick="pinKey('clear')">⌫</div>
+      <div class="pin-key" onclick="pinKey('3')">3</div>
+      <div class="pin-key clear" onclick="hideModal('pin-modal');resetPin()">✕</div>
+    </div>
+  </div>
+</div>
+
+<!-- Invoice/PO Create Modal -->
+<div class="modal-overlay" id="invoice-modal">
+  <div class="modal">
+    <div class="modal-title" id="inv-modal-title">請求書作成</div>
+    <input type="hidden" id="inv-edit-id" value="">
+    <input type="hidden" id="inv-doc-type" value="invoice">
+    <div class="form-group">
+      <label class="form-label">件名 *</label>
+      <input class="form-input" id="inv-inp-subject" type="text" placeholder="例: 新宿ビルLED看板工事">
+    </div>
+    <div class="form-group">
+      <label class="form-label">取引先名</label>
+      <input class="form-input" id="inv-inp-client" type="text" placeholder="例: 株式会社○○">
+    </div>
+    <div class="form-group">
+      <label class="form-label">現場</label>
+      <select class="form-select" id="inv-inp-project"><option value="">-- なし --</option></select>
+    </div>
+    <div class="form-group" style="display:flex;gap:12px">
+      <div style="flex:1">
+        <label class="form-label">発行日</label>
+        <input class="form-input" id="inv-inp-issue" type="date">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">支払期限</label>
+        <input class="form-input" id="inv-inp-due" type="date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">明細</label>
+      <div id="inv-items-container"></div>
+      <button class="btn-secondary" style="padding:6px 12px;font-size:12px;margin-top:6px" onclick="addInvItemRow()">＋ 明細行を追加</button>
+    </div>
+    <div class="form-group" style="display:flex;gap:12px">
+      <div style="flex:1">
+        <label class="form-label">小計</label>
+        <input class="form-input" id="inv-inp-amount" type="number" value="0" min="0" onchange="calcInvTotal()">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">消費税</label>
+        <input class="form-input" id="inv-inp-tax" type="number" value="0" min="0" onchange="calcInvTotal()">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">合計</label>
+        <input class="form-input" id="inv-inp-total" type="number" value="0" readonly style="font-weight:700;color:var(--accent)">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">ステータス</label>
+      <select class="form-select" id="inv-inp-status">
+        <option value="draft">下書き</option>
+        <option value="sent">送付済</option>
+        <option value="paid">入金済</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">備考</label>
+      <textarea class="form-textarea" id="inv-inp-notes"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="hideModal('invoice-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="saveInvoice()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Expense Create Modal -->
+<div class="modal-overlay" id="expense-modal">
+  <div class="modal">
+    <div class="modal-title">💸 経費登録</div>
+    <div class="form-group">
+      <label class="form-label">カテゴリ</label>
+      <select class="form-select" id="exp-inp-category">
+        <option value="材料費">材料費</option>
+        <option value="交通費">交通費</option>
+        <option value="工具費">工具費</option>
+        <option value="外注費">外注費</option>
+        <option value="通信費">通信費</option>
+        <option value="消耗品費">消耗品費</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">内容 *</label>
+      <input class="form-input" id="exp-inp-desc" type="text" placeholder="例: 看板取付用ボルト">
+    </div>
+    <div class="form-group" style="display:flex;gap:12px">
+      <div style="flex:1">
+        <label class="form-label">金額（円）</label>
+        <input class="form-input" id="exp-inp-amount" type="number" value="0" min="0">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">日付</label>
+        <input class="form-input" id="exp-inp-date" type="date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">現場</label>
+      <select class="form-select" id="exp-inp-project"><option value="">-- なし --</option></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">支払者</label>
+      <select class="form-select" id="exp-inp-paidby"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">備考</label>
+      <textarea class="form-textarea" id="exp-inp-notes"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="hideModal('expense-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="saveExpense()">登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Instruction Send Modal -->
+<div class="modal-overlay" id="instruction-modal">
+  <div class="modal">
+    <div class="modal-title">✉ 個別指示を送信</div>
+    <div class="form-group">
+      <label class="form-label">送信者</label>
+      <select class="form-select" id="ins-from-select"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">宛先 *</label>
+      <select class="form-select" id="ins-to-select"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">件名 *</label>
+      <input class="form-input" id="ins-inp-subject" type="text" placeholder="例: 明日の現場について">
+    </div>
+    <div class="form-group">
+      <label class="form-label">本文</label>
+      <textarea class="form-textarea" id="ins-inp-body" placeholder="指示内容を入力..." style="min-height:120px"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="hideModal('instruction-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="sendInstruction()">送信する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Schedule Create Modal -->
+<div class="modal-overlay" id="schedule-modal">
+  <div class="modal">
+    <div class="modal-title" id="sch-modal-title">スケジュール登録</div>
+    <input type="hidden" id="sch-edit-id" value="">
+    <div class="form-group">
+      <label class="form-label">タイトル *</label>
+      <input class="form-input" id="sch-inp-title" type="text" placeholder="例: 新宿ビル看板取付">
+    </div>
+    <div class="form-group">
+      <label class="form-label">日付 *</label>
+      <input class="form-input" id="sch-inp-date" type="date">
+    </div>
+    <div class="form-group" style="display:flex;gap:12px">
+      <div style="flex:1">
+        <label class="form-label">開始時間</label>
+        <input class="form-input" id="sch-inp-start" type="time">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">終了時間</label>
+        <input class="form-input" id="sch-inp-end" type="time">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">現場（紐づけ）</label>
+      <select class="form-select" id="sch-inp-project">
+        <option value="">-- なし（個人予定）--</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">担当スタッフ</label>
+      <div class="staff-grid" id="sch-staff-grid"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">メモ</label>
+      <textarea class="form-textarea" id="sch-inp-notes" placeholder="詳細・連絡事項など"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="hideModal('schedule-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="saveScheduleEntry()">登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Project Create Modal -->
+<div class="modal-overlay" id="project-modal">
+  <div class="modal">
+    <div class="modal-title" id="proj-modal-title">現場登録</div>
+    <input type="hidden" id="proj-edit-id" value="">
+    <div class="form-group">
+      <label class="form-label">現場名 *</label>
+      <input class="form-input" id="proj-inp-name" type="text" placeholder="例: 新宿ビルLED看板工事">
+    </div>
+    <div class="form-group">
+      <label class="form-label">場所</label>
+      <input class="form-input" id="proj-inp-location" type="text" placeholder="例: 東京都新宿区西新宿1-1-1">
+    </div>
+    <div class="form-group">
+      <label class="form-label">取引先名</label>
+      <input class="form-input" id="proj-inp-client" type="text" placeholder="例: 株式会社○○">
+    </div>
+    <div class="form-group" style="display:flex;gap:12px">
+      <div style="flex:1">
+        <label class="form-label">開始日</label>
+        <input class="form-input" id="proj-inp-start" type="date">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">終了日</label>
+        <input class="form-input" id="proj-inp-end" type="date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">カラー</label>
+      <div class="color-options" id="proj-color-options"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">メモ</label>
+      <textarea class="form-textarea" id="proj-inp-notes" placeholder="工事内容・注意事項など"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="hideModal('project-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="saveProject()">登録する</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'mock';
+
+// ── ステータス定義 ─────────────────────────────────────────────
+const STATUS_ORDER   = ['received','ordered_china','factory_confirmed','shipping_prep','in_transit','delivered'];
+const CANCEL_STATUSES = ['cancel_customer','cancel_factory'];
+const TERMINAL_STATUSES = ['delivered','cancel_customer','cancel_factory'];
+
+const STATUSES = {
+  ja: {
+    received:          {label:'受注済み',         color:'#6366f1'},
+    ordered_china:     {label:'中国発注済み',     color:'#f59e0b'},
+    factory_confirmed: {label:'工場確認済み',     color:'#3b82f6'},
+    shipping_prep:     {label:'配送準備中',       color:'#8b5cf6'},
+    in_transit:        {label:'配送中',           color:'#f97316'},
+    delivered:         {label:'配送完了',         color:'#10b981'},
+    cancel_customer:   {label:'キャンセル(顧客)', color:'#ef4444'},
+    cancel_factory:    {label:'キャンセル(工場)', color:'#dc2626'},
+  },
+  zh: {
+    received:          {label:'已收到订单',       color:'#6366f1'},
+    ordered_china:     {label:'已向中国下单',     color:'#f59e0b'},
+    factory_confirmed: {label:'工厂已确认',       color:'#3b82f6'},
+    shipping_prep:     {label:'准备发货',         color:'#8b5cf6'},
+    in_transit:        {label:'运输中',           color:'#f97316'},
+    delivered:         {label:'已送达',           color:'#10b981'},
+    cancel_customer:   {label:'取消(客户)',       color:'#ef4444'},
+    cancel_factory:    {label:'取消(工厂)',       color:'#dc2626'},
+  }
+};
+
+const USERS = {
+  kanno: '菅野', staff01: 'スタッフ01', staff02: 'スタッフ02', staff03: 'スタッフ03', staff04: 'スタッフ04', staff05: 'スタッフ05', staff06: 'スタッフ06', staff07: 'スタッフ07', staff08: 'スタッフ08', staff09: 'スタッフ09', staff10: 'スタッフ10', office01: '事務01', office02: '事務02', office03: '事務03', china01: '中国01', china02: '中国02'
+};
+
+// ── 状態変数 ─────────────────────────────────────────────────
+let lang         = localStorage.getItem('lang') || 'ja';
+let currentFilter = 'all';
+let currentOrder = null;
+let allOrders    = [];
+let searchQuery  = '';
+let currentTab   = 'orders';
+let masterMode   = false;
+let logoTapCount = 0;
+let logoTapTimer = null;
+let pinBuffer    = '';
+let selectedCancelReason = 'cancel_customer';
+const MASTER_PIN = 'kanno0';
+
+// ── 翻訳テキスト ───────────────────────────────────────────────
+const T = {
+  ja: {
+    title:'SYSTEM MANAGER',allLabel:'全件',activeLabel:'進行中',doneLabel:'完了',
+    createTitle:'新規資材注文',product:'商品名 *',qty:'数量',
+    amount:'金額（円）',buyer:'購入者名',email:'メール',note:'備考',
+    register:'登録する',
+    advanceTitle:'ステータスを進める',memo:'メモ（任意）',
+    confirm:'確定',cancel:'キャンセル',statusHistory:'ステータス履歴',
+    nextStatus:'次のステータスへ進む →',alreadyDelivered:'配送完了済みです',
+    cancelled:'キャンセル済みです',
+    updated:'更新完了',created:'資材注文を登録しました',noOrders:'資材注文がありません',
+    amount_lbl:'金額',qty_lbl:'数量',buyer_lbl:'購入者',email_lbl:'メール',note_lbl:'備考',
+    date_lbl:'受注日',
+    memoHeading:'📝 引継ぎメモ',memoPlaceholder:'申し送り事項を入力...',
+    memoSent:'メモを送信しました',memoEmpty:'メモを入力してください',
+    noCustomers:'顧客データがありません',
+    customerOrders:'件の注文',customerNew:'新規',customerRepeat:'リピーター',
+    monthlyHeading:'月別 受注サマリー',orders:'件',revenue:'売上',
+    searchPlaceholder:'注文番号・商品名・購入者名・メールで検索...',
+    deleteConfirm:'この資材注文を削除しますか？この操作は取り消せません。',
+    revertConfirm:'ステータスを1つ前に戻しますか？',
+    deleted:'資材注文を削除しました',reverted:'ステータスを戻しました',
+    masterOn:'マスターモード ON',masterOff:'マスターモード OFF',
+    staleWarn:'停滞中',staleCrit:'要対応',
+    tabOrders:'資材注文',tabProjects:'施工項目',tabCustomers:'顧客',tabMonthly:'月別',
+    filterAll:'全て',filterActive:'進行中',filterDelivered:'完了',filterCancelled:'キャンセル',
+    cancelLabel:'キャンセル',
+    tabSchedule:'スケジュール',
+    tabAttendance:'勤怠',
+    tabInstructions:'指示',
+    tabAccounting:'経理',
+  },
+  zh: {
+    title:'收发货管理',allLabel:'全部',activeLabel:'进行中',doneLabel:'已完成',
+    createTitle:'新建订单',source:'订单来源',product:'商品名称 *',qty:'数量',
+    amount:'金额（日元）',buyer:'购买者姓名',email:'邮箱',note:'备注',
+    register:'登记',
+    advanceTitle:'推进状态',memo:'备注（可选）',
+    confirm:'确定',cancel:'取消',statusHistory:'状态历史',
+    nextStatus:'进入下一个状态 →',alreadyDelivered:'已完成配送',
+    cancelled:'已取消',
+    updated:'更新完成',created:'订单已登记',noOrders:'没有订单',
+    amount_lbl:'金额',qty_lbl:'数量',buyer_lbl:'购买者',email_lbl:'邮箱',note_lbl:'备注',
+    date_lbl:'下单日期',
+    memoHeading:'📝 交接备注',memoPlaceholder:'请输入交接事项...',
+    memoSent:'备注已发送',memoEmpty:'请输入备注',
+    noCustomers:'暂无客户数据',
+    customerOrders:'笔订单',customerNew:'新客',customerRepeat:'回头客',
+    monthlyHeading:'按月订单汇总',orders:'件',revenue:'销售额',
+    searchPlaceholder:'搜索订单号、商品名、购买者、邮箱...',
+    deleteConfirm:'确定删除此订单？此操作不可撤销。',
+    revertConfirm:'确定将状态回退一步？',
+    deleted:'订单已删除',reverted:'状态已回退',
+    masterOn:'主控模式 ON',masterOff:'主控模式 OFF',
+    staleWarn:'滞留中',staleCrit:'需处理',
+    tabOrders:'材料订单',tabProjects:'施工项目',tabCustomers:'客户',tabMonthly:'月度',
+    filterAll:'全部',filterActive:'进行中',filterDelivered:'已完成',filterCancelled:'取消',
+    cancelLabel:'取消',
+    tabSchedule:'日程',
+    tabAttendance:'考勤',
+    tabInstructions:'指令',
+    tabAccounting:'财务',
+  }
+};
+
+function t(key) { return T[lang][key] || key; }
+
+// ── 言語設定 ─────────────────────────────────────────────────
+function setLang(l) {
+  lang = l;
+  localStorage.setItem('lang', l);
+  document.getElementById('btn-ja').classList.toggle('active', l==='ja');
+  document.getElementById('btn-zh').classList.toggle('active', l==='zh');
+  document.getElementById('app-title').textContent = t('title');
+  document.getElementById('search-input').placeholder = t('searchPlaceholder');
+  renderOrders();
+  if (currentOrder) renderDetail();
+  if (currentTab === 'customers') renderCustomerView();
+  if (currentTab === 'monthly') renderMonthlyView();
+  updateModalLabels();
+}
+
+function updateModalLabels() {
+  document.getElementById('stat-all-lbl').textContent    = t('allLabel');
+  document.getElementById('stat-active-lbl').textContent = t('activeLabel');
+  document.getElementById('stat-done-lbl').textContent   = t('doneLabel');
+  document.getElementById('create-title').textContent    = t('createTitle');
+  document.getElementById('lbl-product').textContent     = t('product');
+  document.getElementById('lbl-qty').textContent         = t('qty');
+  document.getElementById('lbl-amount').textContent      = t('amount');
+  document.getElementById('lbl-buyer').textContent       = t('buyer');
+  document.getElementById('lbl-email').textContent       = t('email');
+  document.getElementById('lbl-note').textContent        = t('note');
+  document.getElementById('lbl-register').textContent    = t('register');
+  document.getElementById('advance-title').textContent   = t('advanceTitle');
+  document.getElementById('lbl-memo').textContent        = t('memo');
+  document.getElementById('lbl-confirm').textContent     = t('confirm');
+  document.getElementById('tl-heading').textContent      = t('statusHistory');
+  document.getElementById('memo-heading').textContent    = t('memoHeading');
+  document.getElementById('memo-input').placeholder      = t('memoPlaceholder');
+  // タブ・フィルター翻訳
+  document.getElementById('tab-orders-lbl').textContent    = t('tabOrders');
+  document.getElementById('tab-customers-lbl').textContent = t('tabCustomers');
+  document.getElementById('tab-monthly-lbl').textContent   = t('tabMonthly');
+  document.getElementById('filter-all').textContent        = t('filterAll');
+  document.getElementById('filter-active').textContent     = t('filterActive');
+  document.getElementById('filter-delivered').textContent  = t('filterDelivered');
+  document.getElementById('filter-cancelled').textContent  = t('filterCancelled');
+  document.getElementById('stat-cancel-lbl').textContent   = t('cancelLabel');
+  document.getElementById('tab-schedule-lbl').textContent   = t('tabSchedule');
+  document.getElementById('tab-projects-lbl').textContent     = t('tabProjects');
+  document.getElementById('tab-attendance-lbl').textContent   = t('tabAttendance');
+  document.getElementById('tab-instructions-lbl').textContent = t('tabInstructions');
+  document.getElementById('tab-accounting-lbl').textContent   = t('tabAccounting');
+}
+
+// ── タブ切り替え ─────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  ['orders','projects','customers','monthly','schedule','attendance','instructions','accounting'].forEach(name => {
+    document.getElementById('tab-'+name).classList.toggle('active', name===tab);
+  });
+  document.getElementById('dashboard-view').style.display    = tab==='orders'        ? 'block' : 'none';
+  document.getElementById('projects-view').style.display     = tab==='projects'      ? 'block' : 'none';
+  document.getElementById('customer-view').style.display     = tab==='customers'     ? 'block' : 'none';
+  document.getElementById('monthly-view').style.display      = tab==='monthly'       ? 'block' : 'none';
+  document.getElementById('schedule-view').style.display     = tab==='schedule'      ? 'block' : 'none';
+  document.getElementById('attendance-view').style.display   = tab==='attendance'    ? 'block' : 'none';
+  document.getElementById('instructions-view').style.display = tab==='instructions'  ? 'block' : 'none';
+  document.getElementById('accounting-view').style.display   = tab==='accounting'    ? 'block' : 'none';
+  document.getElementById('search-bar').style.display        = tab==='orders'        ? 'block' : 'none';
+  document.querySelector('.fab').style.display = (tab==='orders'||tab==='schedule'||tab==='projects') ? 'flex' : 'none';
+  if (tab==='projects')     initProjectsTab();
+  if (tab==='customers')    renderCustomerView();
+  if (tab==='monthly')      renderMonthlyView();
+  if (tab==='schedule')     initScheduleView();
+  if (tab==='attendance')   initAttendanceView();
+  if (tab==='instructions') initInstructionsView();
+  if (tab==='accounting')   initAccountingView();
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── デモ用 localStorage モックAPI ────────────────────────────
+// ══════════════════════════════════════════════════════════════
+function demoDB(key, defaultVal) {
+  try { const v = localStorage.getItem('ago_demo_'+key); return v ? JSON.parse(v) : defaultVal; }
+  catch(e) { return defaultVal; }
+}
+function demoSave(key, val) { localStorage.setItem('ago_demo_'+key, JSON.stringify(val)); }
+
+function initDemoData() {
+  if (localStorage.getItem('ago_demo_initialized3')) return;
+  Object.keys(localStorage).filter(k=>k.startsWith('ago_demo_')).forEach(k=>localStorage.removeItem(k));
+  const now = new Date();
+  const today = formatDate(now);
+  const yesterday = formatDate(new Date(now.getTime()-86400000));
+  const twoDaysAgo = formatDate(new Date(now.getTime()-172800000));
+  const tomorrow = formatDate(new Date(now.getTime()+86400000));
+  const dayAfter = formatDate(new Date(now.getTime()+172800000));
+  const threeDays = formatDate(new Date(now.getTime()+259200000));
+
+  demoSave('orders', [
+    {id:1,order_code:'AGO-20260415-001',source:'material',product:'LED蛍光灯 40W×20本',qty:20,amount:48000,buyer_name:'資材センター',buyer_email:'',buyer_note:'急ぎ希望',status:'in_transit',created_at:twoDaysAgo+' 09:30:00',updated_at:yesterday+' 14:00:00'},
+    {id:2,order_code:'AGO-20260415-002',source:'material',product:'チャンネル文字 ステンレス 5文字',qty:1,amount:125000,buyer_name:'サイン工房',buyer_email:'',buyer_note:'',status:'factory_confirmed',created_at:twoDaysAgo+' 11:00:00',updated_at:yesterday+' 10:00:00'},
+    {id:3,order_code:'AGO-20260416-001',source:'material',product:'LEDネオンサイン カスタム',qty:2,amount:85000,buyer_name:'LED卸売センター',buyer_email:'',buyer_note:'デザイン確認済み',status:'ordered_china',created_at:yesterday+' 08:45:00',updated_at:yesterday+' 15:30:00'},
+    {id:4,order_code:'AGO-20260416-002',source:'material',product:'看板用アルミフレーム 1200mm×3',qty:3,amount:36000,buyer_name:'金属加工○○',buyer_email:'',buyer_note:'',status:'received',created_at:yesterday+' 16:00:00',updated_at:yesterday+' 16:00:00'},
+    {id:5,order_code:'AGO-20260416-003',source:'material',product:'LED投光器 100W 防水×5',qty:5,amount:45000,buyer_name:'電材プロ',buyer_email:'',buyer_note:'',status:'delivered',created_at:twoDaysAgo+' 10:00:00',updated_at:today+' 09:00:00'},
+  ]);
+  demoSave('status_log', [
+    {id:1,order_id:1,status:'received',updated_by:'office01',note:'',created_at:twoDaysAgo+' 09:30:00'},
+    {id:2,order_id:1,status:'ordered_china',updated_by:'office01',note:'',created_at:twoDaysAgo+' 10:00:00'},
+    {id:3,order_id:1,status:'factory_confirmed',updated_by:'china01',note:'工場確認OK',created_at:twoDaysAgo+' 15:00:00'},
+    {id:4,order_id:1,status:'shipping_prep',updated_by:'china01',note:'',created_at:yesterday+' 10:00:00'},
+    {id:5,order_id:1,status:'in_transit',updated_by:'china01',note:'追跡番号: SF1234567890',created_at:yesterday+' 14:00:00'},
+    {id:6,order_id:2,status:'received',updated_by:'office02',note:'',created_at:twoDaysAgo+' 11:00:00'},
+    {id:7,order_id:2,status:'ordered_china',updated_by:'office02',note:'',created_at:twoDaysAgo+' 12:00:00'},
+    {id:8,order_id:2,status:'factory_confirmed',updated_by:'china01',note:'3日後出荷予定',created_at:yesterday+' 10:00:00'},
+    {id:9,order_id:3,status:'received',updated_by:'office01',note:'',created_at:yesterday+' 08:45:00'},
+    {id:10,order_id:3,status:'ordered_china',updated_by:'office01',note:'',created_at:yesterday+' 15:30:00'},
+    {id:11,order_id:4,status:'received',updated_by:'kanno',note:'',created_at:yesterday+' 16:00:00'},
+    {id:12,order_id:5,status:'received',updated_by:'office01',note:'',created_at:twoDaysAgo+' 10:00:00'},
+    {id:13,order_id:5,status:'delivered',updated_by:'office01',note:'受領確認済み',created_at:today+' 09:00:00'},
+    {id:14,order_id:4,status:'memo',updated_by:'kanno',note:'急ぎ。明日中に中国発注してください。',created_at:yesterday+' 16:30:00'},
+  ]);
+  demoSave('projects', [
+    {id:1,name:'新宿ビルLED看板工事',location:'東京都新宿区西新宿1-1-1',client_name:'新宿ビルオーナー',start_date:yesterday,end_date:dayAfter,status:'active',notes:'3階正面看板の取替工事',color:'#6366f1',created_at:twoDaysAgo+' 09:00:00',updated_at:twoDaysAgo+' 09:00:00'},
+    {id:2,name:'渋谷カフェ内装電気工事',location:'東京都渋谷区道玄坂2-3-4',client_name:'カフェBeans',start_date:today,end_date:threeDays,status:'active',notes:'店内照明のLED化工事',color:'#10b981',created_at:yesterday+' 10:00:00',updated_at:yesterday+' 10:00:00'},
+    {id:3,name:'品川オフィスサイン設置',location:'東京都品川区東品川5-6-7',client_name:'品川テック株式会社',start_date:tomorrow,end_date:threeDays,status:'active',notes:'エントランスサイン新設',color:'#f59e0b',created_at:yesterday+' 14:00:00',updated_at:yesterday+' 14:00:00'},
+    {id:4,name:'横浜倉庫LED照明改修',location:'神奈川県横浜市中区1-2-3',client_name:'横浜ロジ',start_date:twoDaysAgo,end_date:yesterday,status:'completed',notes:'完了',color:'#8b5cf6',created_at:twoDaysAgo+' 08:00:00',updated_at:yesterday+' 17:00:00'},
+  ]);
+  demoSave('schedule_entries', [
+    {id:1,project_id:1,title:'新宿ビル看板撤去',date:yesterday,start_time:'09:00',end_time:'17:00',notes:'安全帯持参',created_by:'kanno',created_at:twoDaysAgo+' 09:00:00',updated_at:twoDaysAgo+' 09:00:00',staff:['staff01','staff03','staff05']},
+    {id:2,project_id:1,title:'新宿ビル新看板取付',date:today,start_time:'09:00',end_time:'17:00',notes:'',created_by:'kanno',created_at:twoDaysAgo+' 09:00:00',updated_at:twoDaysAgo+' 09:00:00',staff:['staff01','staff03','staff05']},
+    {id:3,project_id:2,title:'渋谷カフェ配線工事',date:today,start_time:'10:00',end_time:'18:00',notes:'店舗営業前に搬入',created_by:'office01',created_at:yesterday+' 10:00:00',updated_at:yesterday+' 10:00:00',staff:['staff02','staff04']},
+    {id:4,project_id:2,title:'渋谷カフェLED取付',date:tomorrow,start_time:'09:00',end_time:'16:00',notes:'',created_by:'office01',created_at:yesterday+' 10:00:00',updated_at:yesterday+' 10:00:00',staff:['staff02','staff04','staff06']},
+    {id:5,project_id:3,title:'品川オフィスサイン設置',date:tomorrow,start_time:'08:30',end_time:'17:00',notes:'大型サイン。クレーン手配済み',created_by:'kanno',created_at:yesterday+' 14:00:00',updated_at:yesterday+' 14:00:00',staff:['staff07','staff08','staff09']},
+    {id:6,project_id:null,title:'車両点検',date:today,start_time:'08:00',end_time:'09:00',notes:'2号車の定期点検',created_by:'office01',created_at:yesterday+' 16:00:00',updated_at:yesterday+' 16:00:00',staff:['staff10']},
+    {id:7,project_id:1,title:'新宿ビル最終確認・引渡し',date:dayAfter,start_time:'10:00',end_time:'12:00',notes:'オーナー立会い',created_by:'kanno',created_at:twoDaysAgo+' 09:00:00',updated_at:twoDaysAgo+' 09:00:00',staff:['staff01','kanno']},
+  ]);
+  demoSave('attendance', [
+    {id:1,user_id:'staff01',date:today,clock_in:'08:15',clock_out:'',clock_in_lat:35.6895,clock_in_lng:139.6917,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:today+' 08:15:00'},
+    {id:2,user_id:'staff02',date:today,clock_in:'08:30',clock_out:'',clock_in_lat:35.6580,clock_in_lng:139.7016,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:today+' 08:30:00'},
+    {id:3,user_id:'staff03',date:today,clock_in:'08:10',clock_out:'',clock_in_lat:35.6895,clock_in_lng:139.6917,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:today+' 08:10:00'},
+    {id:4,user_id:'staff04',date:today,clock_in:'08:45',clock_out:'',clock_in_lat:35.6580,clock_in_lng:139.7016,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:today+' 08:45:00'},
+    {id:5,user_id:'staff05',date:today,clock_in:'08:20',clock_out:'',clock_in_lat:35.6895,clock_in_lng:139.6917,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:today+' 08:20:00'},
+    {id:6,user_id:'office01',date:today,clock_in:'09:00',clock_out:'',clock_in_lat:35.6812,clock_in_lng:139.7671,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:today+' 09:00:00'},
+    {id:7,user_id:'staff01',date:yesterday,clock_in:'08:00',clock_out:'17:30',clock_in_lat:35.6895,clock_in_lng:139.6917,clock_out_lat:35.6895,clock_out_lng:139.6917,notes:'',created_at:yesterday+' 08:00:00'},
+    {id:8,user_id:'staff02',date:yesterday,clock_in:'08:15',clock_out:'17:00',clock_in_lat:35.6580,clock_in_lng:139.7016,clock_out_lat:35.6580,clock_out_lng:139.7016,notes:'',created_at:yesterday+' 08:15:00'},
+  ]);
+  demoSave('gps_logs', [
+    {id:1,user_id:'staff01',lat:35.6895,lng:139.6917,accuracy:15,recorded_at:today+' 08:15:00'},
+    {id:2,user_id:'staff02',lat:35.6580,lng:139.7016,accuracy:20,recorded_at:today+' 08:30:00'},
+    {id:3,user_id:'staff03',lat:35.6900,lng:139.6920,accuracy:12,recorded_at:today+' 08:10:00'},
+    {id:4,user_id:'staff04',lat:35.6585,lng:139.7020,accuracy:18,recorded_at:today+' 08:45:00'},
+    {id:5,user_id:'staff05',lat:35.6898,lng:139.6915,accuracy:10,recorded_at:today+' 08:20:00'},
+  ]);
+  demoSave('instructions', [
+    {id:1,from_user:'kanno',to_user:'staff01',subject:'明日の新宿ビル工事について',body:'明日は8時半に現場集合。安全帯とヘルメットを忘れずに。',is_read:1,read_at:yesterday+' 18:00:00',created_at:yesterday+' 17:00:00'},
+    {id:2,from_user:'kanno',to_user:'staff02',subject:'渋谷カフェの件',body:'渋谷カフェの工事は本日10時開始。店舗営業前に資材搬入を完了してください。',is_read:0,read_at:'',created_at:today+' 07:30:00'},
+    {id:3,from_user:'office01',to_user:'staff07',subject:'品川オフィスの図面確認',body:'品川オフィスの図面を更新しました。確認お願いします。',is_read:0,read_at:'',created_at:today+' 09:00:00'},
+    {id:4,from_user:'kanno',to_user:'office01',subject:'今月の請求書作成',body:'新宿ビルの工事が完了したら請求書を作成してください。',is_read:1,read_at:today+' 09:30:00',created_at:today+' 08:00:00'},
+  ]);
+  demoSave('site_notes', [
+    {id:1,project_id:1,user_id:'staff01',body:'1階看板の撤去完了。2階は明日作業予定。',photo_path:'',created_at:yesterday+' 12:00:00'},
+    {id:2,project_id:1,user_id:'staff03',body:'2階の配線が古いため、追加の電線が必要です。50m程度。',photo_path:'',created_at:yesterday+' 15:30:00'},
+    {id:3,project_id:1,user_id:'kanno',body:'了解。電線は事務所に在庫あり。明日持っていきます。',photo_path:'',created_at:yesterday+' 16:00:00'},
+    {id:4,project_id:2,user_id:'office01',body:'カフェオーナーから：営業中の騒音は最小限にとのこと。',photo_path:'',created_at:today+' 08:00:00'},
+  ]);
+  demoSave('invoices', [
+    {id:1,doc_type:'invoice',doc_number:'AGO-INV-20260414-001',project_id:4,client_name:'横浜ロジ',subject:'横浜倉庫LED照明改修工事',amount:580000,tax:58000,total:638000,issue_date:yesterday,due_date:threeDays,status:'sent',notes:'',created_by:'office01',created_at:yesterday+' 17:00:00',updated_at:yesterday+' 17:00:00',items:[{description:'LED照明器具取付（40台）',qty:40,unit_price:8000,amount:320000},{description:'配線工事一式',qty:1,unit_price:180000,amount:180000},{description:'撤去・処分費',qty:1,unit_price:80000,amount:80000}]},
+    {id:2,doc_type:'invoice',doc_number:'AGO-INV-20260416-001',project_id:1,client_name:'新宿ビルオーナー',subject:'新宿ビルLED看板工事',amount:950000,tax:95000,total:1045000,issue_date:today,due_date:'',status:'draft',notes:'工事完了後に発行予定',created_by:'office01',created_at:today+' 10:00:00',updated_at:today+' 10:00:00',items:[{description:'LED看板製作・取付',qty:1,unit_price:750000,amount:750000},{description:'既存看板撤去・処分',qty:1,unit_price:200000,amount:200000}]},
+    {id:3,doc_type:'purchase_order',doc_number:'AGO-PO-20260415-001',project_id:2,client_name:'LED卸売センター',subject:'渋谷カフェ用LED照明部材',amount:120000,tax:12000,total:132000,issue_date:yesterday,due_date:'',status:'sent',notes:'',created_by:'office01',created_at:yesterday+' 11:00:00',updated_at:yesterday+' 11:00:00',items:[{description:'ダウンライトLED 60W相当',qty:20,unit_price:3500,amount:70000},{description:'間接照明用LEDテープ 5m',qty:10,unit_price:5000,amount:50000}]},
+  ]);
+  demoSave('expenses', [
+    {id:1,project_id:1,category:'材料費',description:'看板取付用ボルト・ナットセット',amount:8500,expense_date:yesterday,paid_by:'staff01',notes:'',created_by:'staff01',created_at:yesterday+' 12:00:00'},
+    {id:2,project_id:1,category:'交通費',description:'新宿現場 高速代',amount:1200,expense_date:yesterday,paid_by:'staff01',notes:'首都高',created_by:'staff01',created_at:yesterday+' 08:30:00'},
+    {id:3,project_id:2,category:'材料費',description:'配線用VVFケーブル 100m',amount:15000,expense_date:today,paid_by:'staff02',notes:'',created_by:'staff02',created_at:today+' 09:00:00'},
+    {id:4,project_id:null,category:'工具費',description:'インパクトドライバー替えビット',amount:3200,expense_date:today,paid_by:'staff05',notes:'消耗品',created_by:'staff05',created_at:today+' 07:00:00'},
+    {id:5,project_id:null,category:'消耗品費',description:'養生テープ・ブルーシート',amount:4800,expense_date:yesterday,paid_by:'office01',notes:'',created_by:'office01',created_at:yesterday+' 10:00:00'},
+  ]);
+  localStorage.setItem('ago_demo_initialized3', '1');
+}
+
+async function apiFetch(url, options={}) {
+  const params = new URL(url, 'http://x').searchParams;
+  const action = params.get('action')||'';
+  const body = options.body ? JSON.parse(options.body) : {};
+  const now = new Date();
+  const nowStr = now.toISOString().replace('T',' ').substring(0,19);
+  const todayStr = formatDate(now);
+  switch(action) {
+    case 'list': return {success:true, orders:demoDB('orders',[])};
+    case 'get': { const id=parseInt(params.get('id')); const o=demoDB('orders',[]).find(x=>x.id===id); return o?{success:true,order:o,logs:demoDB('status_log',[]).filter(l=>l.order_id===id)}:{success:false}; }
+    case 'create': { const os=demoDB('orders',[]); const seq=os.length+1; const no={id:seq,order_code:`AGO-${todayStr.replace(/-/g,'')}-${String(seq).padStart(3,'0')}`,source:'material',product:body.product,qty:body.qty||1,amount:body.amount||0,buyer_name:body.buyer_name||'',buyer_email:body.buyer_email||'',buyer_note:body.buyer_note||'',status:'received',created_at:nowStr,updated_at:nowStr}; os.push(no); demoSave('orders',os); const ls=demoDB('status_log',[]); ls.push({id:ls.length+1,order_id:no.id,status:'received',updated_by:body.updated_by||'',note:'',created_at:nowStr}); demoSave('status_log',ls); return {success:true,id:no.id,order_code:no.order_code}; }
+    case 'update_status': { const os=demoDB('orders',[]); const i=os.findIndex(o=>o.id===body.id); if(i<0)return{success:false}; os[i].status=body.status; os[i].updated_at=nowStr; demoSave('orders',os); const ls=demoDB('status_log',[]); ls.push({id:ls.length+1,order_id:body.id,status:body.status,updated_by:body.updated_by||'',note:body.note||'',created_at:nowStr}); demoSave('status_log',ls); return {success:true}; }
+    case 'add_memo': { const ls=demoDB('status_log',[]); ls.push({id:ls.length+1,order_id:body.id,status:'memo',updated_by:body.updated_by||'',note:body.note||'',created_at:nowStr}); demoSave('status_log',ls); return {success:true}; }
+    case 'delete': { const did=parseInt(params.get('id'))||body.id; demoSave('orders',demoDB('orders',[]).filter(o=>o.id!==did)); return {success:true}; }
+    case 'projects_list': return {success:true,projects:demoDB('projects',[]).sort((a,b)=>(a.status==='active'?0:1)-(b.status==='active'?0:1))};
+    case 'project_create': { const ps=demoDB('projects',[]); const np={id:ps.length+1,...body,created_at:nowStr,updated_at:nowStr}; ps.push(np); demoSave('projects',ps); return {success:true,id:np.id}; }
+    case 'project_update': { const ps=demoDB('projects',[]); const pi=ps.findIndex(p=>p.id===body.id); if(pi>=0){Object.assign(ps[pi],body,{updated_at:nowStr});demoSave('projects',ps);} return {success:true}; }
+    case 'project_delete': { demoSave('projects',demoDB('projects',[]).filter(p=>p.id!==body.id)); return {success:true}; }
+    case 'schedule_list': { const from=params.get('from')||'2000-01-01',to=params.get('to')||'2099-12-31'; const es=demoDB('schedule_entries',[]).filter(e=>e.date>=from&&e.date<=to); const ps=demoDB('projects',[]); es.forEach(e=>{if(e.project_id){const p=ps.find(pp=>pp.id===e.project_id);if(p){e.project_name=p.name;e.project_color=p.color;e.project_location=p.location;}}}); return {success:true,entries:es}; }
+    case 'schedule_by_user': { const uid=params.get('user_id'),from=params.get('from')||'2000-01-01',to=params.get('to')||'2099-12-31'; const es=demoDB('schedule_entries',[]).filter(e=>e.date>=from&&e.date<=to&&e.staff&&e.staff.includes(uid)); const ps=demoDB('projects',[]); es.forEach(e=>{if(e.project_id){const p=ps.find(pp=>pp.id===e.project_id);if(p){e.project_name=p.name;e.project_color=p.color;}}}); return {success:true,entries:es}; }
+    case 'schedule_by_project': { const pid=parseInt(params.get('project_id')); const es=demoDB('schedule_entries',[]).filter(e=>e.project_id===pid); const ps=demoDB('projects',[]); es.forEach(e=>{if(e.project_id){const p=ps.find(pp=>pp.id===e.project_id);if(p){e.project_name=p.name;e.project_color=p.color;}}}); return {success:true,entries:es}; }
+    case 'schedule_create': { const es=demoDB('schedule_entries',[]); es.push({id:es.length+1,project_id:body.project_id?parseInt(body.project_id):null,title:body.title,date:body.date,start_time:body.start_time||'',end_time:body.end_time||'',notes:body.notes||'',staff:body.staff||[],created_by:body.created_by||'',created_at:nowStr,updated_at:nowStr}); demoSave('schedule_entries',es); return {success:true}; }
+    case 'schedule_update': { const es=demoDB('schedule_entries',[]); const ei=es.findIndex(e=>e.id===body.id); if(ei>=0){Object.assign(es[ei],body,{project_id:body.project_id?parseInt(body.project_id):null,updated_at:nowStr});demoSave('schedule_entries',es);} return {success:true}; }
+    case 'schedule_delete': { demoSave('schedule_entries',demoDB('schedule_entries',[]).filter(e=>e.id!==body.id)); return {success:true}; }
+    case 'attendance_today': { const uid=params.get('user_id'); return {success:true,record:demoDB('attendance',[]).find(r=>r.user_id===uid&&r.date===todayStr)||null}; }
+    case 'attendance_list': { const uid=params.get('user_id'),mo=params.get('month')||''; return {success:true,records:demoDB('attendance',[]).filter(r=>r.user_id===uid&&r.date.startsWith(mo))}; }
+    case 'attendance_all': { const d=params.get('date')||todayStr; return {success:true,records:demoDB('attendance',[]).filter(r=>r.date===d)}; }
+    case 'clock_in': { const recs=demoDB('attendance',[]); if(recs.find(r=>r.user_id===body.user_id&&r.date===todayStr))return{success:false,message:'既に出勤済み'}; const t=now.toTimeString().substring(0,8); recs.push({id:recs.length+1,user_id:body.user_id,date:todayStr,clock_in:t,clock_out:'',clock_in_lat:body.lat,clock_in_lng:body.lng,clock_out_lat:null,clock_out_lng:null,notes:'',created_at:nowStr}); demoSave('attendance',recs); return {success:true,clock_in:t}; }
+    case 'clock_out': { const recs=demoDB('attendance',[]); const ri=recs.findIndex(r=>r.user_id===body.user_id&&r.date===todayStr&&r.clock_out===''); if(ri<0)return{success:false,message:'出勤記録なし'}; const t=now.toTimeString().substring(0,8); recs[ri].clock_out=t; demoSave('attendance',recs); return {success:true,clock_out:t}; }
+    case 'gps_log': { const ls=demoDB('gps_logs',[]); ls.push({id:ls.length+1,user_id:body.user_id,lat:body.lat,lng:body.lng,accuracy:body.accuracy||null,recorded_at:nowStr}); demoSave('gps_logs',ls); return {success:true}; }
+    case 'gps_latest': { const ls=demoDB('gps_logs',[]).filter(l=>l.recorded_at>=todayStr+' 00:00:00'); const lat={}; ls.forEach(l=>{if(!lat[l.user_id]||l.id>lat[l.user_id].id)lat[l.user_id]=l;}); return {success:true,locations:Object.values(lat)}; }
+    case 'instructions_list': { const uid=params.get('user_id'); return {success:true,instructions:demoDB('instructions',[]).filter(i=>i.to_user===uid||i.from_user===uid).sort((a,b)=>b.created_at.localeCompare(a.created_at))}; }
+    case 'instruction_send': { const its=demoDB('instructions',[]); its.push({id:its.length+1,...body,is_read:0,read_at:'',created_at:nowStr}); demoSave('instructions',its); return {success:true}; }
+    case 'instruction_read': { const its=demoDB('instructions',[]); const ii=its.findIndex(i=>i.id===body.id); if(ii>=0){its[ii].is_read=1;its[ii].read_at=nowStr;demoSave('instructions',its);} return {success:true}; }
+    case 'site_notes_list': { const pid=parseInt(params.get('project_id')); return {success:true,notes:demoDB('site_notes',[]).filter(n=>n.project_id===pid).sort((a,b)=>b.created_at.localeCompare(a.created_at))}; }
+    case 'site_note_create': { const ns=demoDB('site_notes',[]); ns.push({id:ns.length+1,project_id:parseInt(body.project_id),user_id:body.user_id||'',body:body.body,photo_path:'',created_at:nowStr}); demoSave('site_notes',ns); return {success:true}; }
+    case 'invoices_list': { const dt=params.get('doc_type'); let its=demoDB('invoices',[]); if(dt)its=its.filter(i=>i.doc_type===dt); return {success:true,invoices:its.sort((a,b)=>b.created_at.localeCompare(a.created_at))}; }
+    case 'invoice_get': { return {success:true,invoice:demoDB('invoices',[]).find(i=>i.id===parseInt(params.get('id')))}; }
+    case 'invoice_create': { const invs=demoDB('invoices',[]); const pf=body.doc_type==='purchase_order'?'PO':'INV'; const sq=invs.length+1; invs.push({id:sq,doc_number:`AGO-${pf}-${todayStr.replace(/-/g,'')}-${String(sq).padStart(3,'0')}`,...body,total:(body.amount||0)+(body.tax||0),created_at:nowStr,updated_at:nowStr}); demoSave('invoices',invs); return {success:true}; }
+    case 'invoice_update': { const invs=demoDB('invoices',[]); const ii=invs.findIndex(i=>i.id===body.id); if(ii>=0){Object.assign(invs[ii],body,{total:(body.amount||0)+(body.tax||0),updated_at:nowStr});demoSave('invoices',invs);} return {success:true}; }
+    case 'expenses_list': { const mo=params.get('month')||''; let ex=demoDB('expenses',[]); if(mo)ex=ex.filter(e=>e.expense_date.startsWith(mo)); return {success:true,expenses:ex.sort((a,b)=>b.expense_date.localeCompare(a.expense_date))}; }
+    case 'expense_create': { const ex=demoDB('expenses',[]); ex.push({id:ex.length+1,...body,created_at:nowStr}); demoSave('expenses',ex); return {success:true}; }
+    case 'finance_summary': { const mo=params.get('month')||todayStr.substring(0,7); const invs=demoDB('invoices',[]); const ex=demoDB('expenses',[]); const rev=invs.filter(i=>i.doc_type==='invoice'&&(i.status==='sent'||i.status==='paid')&&(i.issue_date||'').startsWith(mo)).reduce((s,i)=>s+(i.total||0),0); const exp=ex.filter(e=>(e.expense_date||'').startsWith(mo)).reduce((s,e)=>s+(e.amount||0),0); const po=invs.filter(i=>i.doc_type==='purchase_order'&&(i.issue_date||'').startsWith(mo)).reduce((s,i)=>s+(i.total||0),0); return {success:true,month:mo,revenue:rev,expenses:exp,purchase_orders:po,profit:rev-exp}; }
+    default: return {success:false,message:'不明: '+action};
+  }
+}
+
+// ── データ取得 ───────────────────────────────────────────────
+async function loadOrders() {
+  const data = await apiFetch(API+'?action=list').catch(()=>({success:false}));
+  if (data.success) {
+    allOrders = data.orders || [];
+    updateStats();
+    renderOrders();
+  }
+}
+
+function updateStats() {
+  const active   = allOrders.filter(o => !TERMINAL_STATUSES.includes(o.status)).length;
+  const done     = allOrders.filter(o => o.status === 'delivered').length;
+  const cancelled= allOrders.filter(o => CANCEL_STATUSES.includes(o.status)).length;
+  document.getElementById('stat-all').textContent    = allOrders.length;
+  document.getElementById('stat-active').textContent = active;
+  document.getElementById('stat-done').textContent   = done;
+  document.getElementById('stat-cancel').textContent = cancelled;
+}
+
+// ── 検索 ────────────────────────────────────────────────────
+function onSearch() {
+  searchQuery = document.getElementById('search-input').value.trim().toLowerCase();
+  renderOrders();
+}
+
+// ── フィルタ ─────────────────────────────────────────────────
+function filteredOrders() {
+  let orders = allOrders;
+  // Search filter
+  if (searchQuery) {
+    orders = orders.filter(o =>
+      (o.order_code||'').toLowerCase().includes(searchQuery) ||
+      (o.product||'').toLowerCase().includes(searchQuery) ||
+      (o.buyer_name||'').toLowerCase().includes(searchQuery) ||
+      (o.buyer_email||'').toLowerCase().includes(searchQuery) ||
+      (o.buyer_note||'').toLowerCase().includes(searchQuery)
+    );
+  }
+  // Tab filter
+  switch(currentFilter) {
+    case 'active':    return orders.filter(o => !TERMINAL_STATUSES.includes(o.status));
+    case 'delivered': return orders.filter(o => o.status === 'delivered');
+    case 'cancelled': return orders.filter(o => CANCEL_STATUSES.includes(o.status));
+    default:          return orders;
+  }
+}
+
+function setFilter(btn) {
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter = btn.dataset.filter;
+  renderOrders();
+}
+
+// ── 停滞判定 ─────────────────────────────────────────────────
+function getStaleInfo(order) {
+  if (order.status !== 'received') return null;
+  const updated = new Date(order.updated_at || order.created_at);
+  const hoursAgo = (Date.now() - updated.getTime()) / 3600000;
+  if (hoursAgo >= 24) return 'crit';
+  if (hoursAgo >= 12) return 'warn';
+  return null;
+}
+
+// ── 注文カード描画 ────────────────────────────────────────────
+function renderOrders() {
+  const grid = document.getElementById('order-grid');
+  const orders = filteredOrders();
+  if (orders.length === 0) {
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">📋</div><p>${t('noOrders')}</p></div>`;
+    return;
+  }
+  grid.innerHTML = orders.map(o => {
+    const s = STATUSES[lang][o.status] || {label:o.status,color:'#666'};
+    const date = o.updated_at ? o.updated_at.substring(0,10) : '';
+    const stale = getStaleInfo(o);
+    const staleClass = stale ? 'order-card stale-'+stale : 'order-card';
+    const staleBadge = stale ? `<span class="stale-badge ${stale}">${stale==='crit'?'⚠️'+t('staleCrit'):'⏰'+t('staleWarn')}</span>` : '';
+    return `
+    <div class="${staleClass}" onclick="openDetail(${o.id})">
+      ${staleBadge}
+      <div class="order-card-top">
+        <span class="order-code">${escHtml(o.order_code)}</span>
+      </div>
+      <div class="order-product">${escHtml(o.product)}</div>
+      <div class="order-card-bottom">
+        <span class="status-badge" style="background:${s.color}">${s.label}</span>
+        <span class="order-meta">${date}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── 顧客リスト ────────────────────────────────────────────────
+function renderCustomerView() {
+  const view = document.getElementById('customer-view');
+  // Group by buyer_name
+  const map = {};
+  allOrders.forEach(o => {
+    const key = o.buyer_name || o.buyer_email || '（名前なし）';
+    if (!map[key]) map[key] = {name:key,email:o.buyer_email||'',orders:[]};
+    map[key].orders.push(o);
+  });
+  const customers = Object.values(map).sort((a,b) => b.orders.length - a.orders.length);
+  if (customers.length === 0) {
+    view.innerHTML = `<div class="empty"><div class="empty-icon">👥</div><p>${t('noCustomers')}</p></div>`;
+    return;
+  }
+  // 施工項目との紐づき（client_nameで照合）
+  const projsByClient = {};
+  schProjects.forEach(p => { if(p.client_name) { if(!projsByClient[p.client_name]) projsByClient[p.client_name]=[]; projsByClient[p.client_name].push(p); }});
+
+  view.innerHTML = customers.map(c => {
+    const isRepeat = c.orders.length > 1;
+    const badge = isRepeat
+      ? `<span class="customer-badge badge-repeat">${t('customerRepeat')}</span>`
+      : `<span class="customer-badge badge-new">${t('customerNew')}</span>`;
+    const totalAmt = c.orders.reduce((sum,o) => sum+(parseInt(o.amount)||0), 0);
+    const amtStr = totalAmt > 0 ? ' · ¥'+totalAmt.toLocaleString() : '';
+    const linkedProjs = projsByClient[c.name] || [];
+    const projLink = linkedProjs.length > 0
+      ? `<div style="margin-top:4px;font-size:12px">🏗 <a href="#" onclick="event.stopPropagation();filterProjectsByClient('${escHtml(c.name)}')" style="color:var(--accent);text-decoration:none">${linkedProjs.length}件の施工項目</a></div>`
+      : '';
+    return `<div class="customer-card" onclick="filterByCustomer('${escHtml(c.name)}')">
+      <div class="customer-card-top">
+        <span class="customer-name">${escHtml(c.name)}</span>
+        ${badge}
+      </div>
+      <div class="customer-meta">${c.orders.length}${t('customerOrders')}${amtStr}${c.email?' · '+escHtml(c.email):''}</div>
+      ${projLink}
+    </div>`;
+  }).join('');
+}
+
+function filterByCustomer(name) {
+  switchTab('orders');
+  document.getElementById('search-input').value = name;
+  searchQuery = name.toLowerCase();
+  renderOrders();
+}
+
+// ── 月別統計 ─────────────────────────────────────────────────
+function renderMonthlyView() {
+  const view = document.getElementById('monthly-view');
+  const map = {};
+  allOrders.filter(o => !CANCEL_STATUSES.includes(o.status)).forEach(o => {
+    const month = (o.created_at||'').substring(0,7); // YYYY-MM
+    if (!month) return;
+    if (!map[month]) map[month] = {month, count:0, revenue:0};
+    map[month].count++;
+    map[month].revenue += parseInt(o.amount)||0;
+  });
+  const months = Object.values(map).sort((a,b) => b.month.localeCompare(a.month));
+  if (months.length === 0) {
+    view.innerHTML = `<div class="empty"><div class="empty-icon">📊</div><p>データがありません</p></div>`;
+    return;
+  }
+  view.innerHTML = `<div style="padding:16px 0 4px 16px;font-size:14px;color:var(--muted);font-weight:600">${t('monthlyHeading')}</div>` +
+  months.map(m => {
+    const [y,mo] = m.month.split('-');
+    const label = `${y}年${parseInt(mo)}月`;
+    return `<div class="monthly-card">
+      <div class="monthly-header">
+        <span class="monthly-month">${label}</span>
+        <span class="monthly-count">${m.count}${t('orders')}</span>
+      </div>
+      <div class="monthly-stats-row">
+        <div class="monthly-stat">
+          <div class="monthly-stat-num">${m.count}</div>
+          <div class="monthly-stat-lbl">受注数</div>
+        </div>
+        <div class="monthly-stat">
+          <div class="monthly-stat-num">${m.revenue > 0 ? '¥'+m.revenue.toLocaleString() : '-'}</div>
+          <div class="monthly-stat-lbl">${t('revenue')}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── 詳細画面 ─────────────────────────────────────────────────
+async function openDetail(id) {
+  const data = await apiFetch(`${API}?action=get&id=${id}`);
+  if (!data.success) return;
+  currentOrder = data.order;
+  currentOrder._logs = data.logs || [];
+  renderDetail();
+  document.getElementById('dashboard-view').style.display = 'none';
+  document.getElementById('detail-view').style.display = 'block';
+  document.querySelector('.fab').style.display = 'none';
+}
+
+function renderDetail() {
+  const o = currentOrder;
+  document.getElementById('detail-code').textContent = o.order_code;
+
+  const amount = o.amount ? '¥'+parseInt(o.amount).toLocaleString() : '-';
+  document.getElementById('detail-info').innerHTML = `
+    <div class="info-row"><span class="info-label">${t('product')}</span><span class="info-value">${escHtml(o.product)}</span></div>
+    <div class="info-row"><span class="info-label">${t('qty_lbl')}</span><span class="info-value">${o.qty}個</span></div>
+    <div class="info-row"><span class="info-label">${t('amount_lbl')}</span><span class="info-value">${amount}</span></div>
+    ${o.buyer_name ? `<div class="info-row"><span class="info-label">${t('buyer_lbl')}</span><span class="info-value">${escHtml(o.buyer_name)}</span></div>` : ''}
+    ${o.buyer_email ? `<div class="info-row"><span class="info-label">${t('email_lbl')}</span><span class="info-value">${escHtml(o.buyer_email)}</span></div>` : ''}
+    ${o.buyer_note ? `<div class="info-row"><span class="info-label">${t('note_lbl')}</span><span class="info-value">${escHtml(o.buyer_note)}</span></div>` : ''}
+    <div class="info-row"><span class="info-label">${t('date_lbl')}</span><span class="info-value">${o.created_at||''}</span></div>
+  `;
+
+  // タイムライン（通常ステータス）
+  const logs = o._logs;
+  const isCancelled = CANCEL_STATUSES.includes(o.status);
+  const curIdx = STATUS_ORDER.indexOf(o.status);
+  let tl = STATUS_ORDER.map((key, idx) => {
+    let state = idx < curIdx ? 'done' : (idx === curIdx ? 'current' : 'future');
+    const sInfo = STATUSES[lang][key] || {label:key};
+    const log = logs.find(l => l.status === key);
+    const meta = log ? `<div class="tl-meta">${USERS[log.updated_by]||log.updated_by} · ${log.created_at||''} ${log.note ? '· '+escHtml(log.note) : ''}</div>` : '';
+    return `<div class="tl-item">
+      <div class="tl-dot ${state}"></div>
+      <div class="tl-label ${state}">${sInfo.label}</div>
+      ${meta}
+    </div>`;
+  }).join('');
+
+  // キャンセルの場合は末尾に追加
+  if (isCancelled) {
+    const cInfo = STATUSES[lang][o.status] || {label:o.status};
+    const cLog  = logs.find(l => l.status === o.status);
+    const cMeta = cLog ? `<div class="tl-meta">${USERS[cLog.updated_by]||cLog.updated_by} · ${cLog.created_at||''} ${cLog.note ? '· '+escHtml(cLog.note) : ''}</div>` : '';
+    tl += `<div class="tl-item">
+      <div class="tl-dot cancel"></div>
+      <div class="tl-label cancel">${cInfo.label}</div>
+      ${cMeta}
+    </div>`;
+  }
+  document.getElementById('timeline').innerHTML = tl;
+  document.getElementById('tl-heading').textContent = t('statusHistory');
+
+  // 次へ進むボタン
+  const advBtn = document.getElementById('advance-btn');
+  const cancelBtn = document.getElementById('cancel-btn');
+  if (isCancelled) {
+    advBtn.textContent = t('cancelled');
+    advBtn.disabled = true;
+    cancelBtn.style.display = 'none';
+  } else if (curIdx >= STATUS_ORDER.length - 1) {
+    advBtn.textContent = t('alreadyDelivered');
+    advBtn.disabled = true;
+    cancelBtn.style.display = 'none';
+  } else {
+    const nextStatus = STATUSES[lang][STATUS_ORDER[curIdx+1]] || {label:STATUS_ORDER[curIdx+1]};
+    advBtn.textContent = `${t('nextStatus')} (${nextStatus.label})`;
+    advBtn.disabled = false;
+    cancelBtn.style.display = masterMode ? 'block' : 'none';
+  }
+
+  // マスターボタン
+  document.getElementById('master-btns').style.display = masterMode ? 'flex' : 'none';
+
+  // 引継ぎメモ（status_logのmemoエントリ）
+  const memos = logs.filter(l => l.status === 'memo');
+  const memoList = document.getElementById('memo-list');
+  memoList.innerHTML = memos.length === 0 ? `<p style="color:var(--muted);font-size:13px">メモはありません</p>` :
+    memos.map(m => `<div class="memo-item">
+      ${escHtml(m.note)}
+      <div class="memo-item-meta">${m.created_at||''}</div>
+    </div>`).join('');
+}
+
+function showDashboard() {
+  document.getElementById('detail-view').style.display = 'none';
+  if (currentTab === 'schedule') {
+    document.getElementById('schedule-view').style.display = 'block';
+  } else if (currentTab === 'projects') {
+    document.getElementById('projects-view').style.display = 'block';
+  } else {
+    document.getElementById('dashboard-view').style.display = 'block';
+  }
+  document.querySelector('.fab').style.display = 'flex';
+  currentOrder = null;
+  loadOrders();
+}
+
+// ── 新規注文 ─────────────────────────────────────────────────
+let selectedSource = 'catalog';
+
+function selectSource(src) {
+  selectedSource = src;
+  document.getElementById('src-catalog').classList.toggle('selected', src==='catalog');
+  document.getElementById('src-amazon').classList.toggle('selected', src==='amazon');
+}
+
+function showCreateModal() {
+  document.getElementById('inp-product').value = '';
+  document.getElementById('inp-qty').value = '1';
+  document.getElementById('inp-amount').value = '0';
+  document.getElementById('inp-buyer').value = '';
+  document.getElementById('inp-email').value = '';
+  document.getElementById('inp-note').value = '';
+  document.getElementById('create-modal').classList.add('show');
+}
+
+async function createOrder() {
+  const product = document.getElementById('inp-product').value.trim();
+  if (!product) { showToast('商品名を入力してください'); return; }
+  const body = {
+    source:      'material',
+    product,
+    qty:         parseInt(document.getElementById('inp-qty').value)||1,
+    amount:      parseInt(document.getElementById('inp-amount').value)||0,
+    buyer_name:  document.getElementById('inp-buyer').value.trim(),
+    buyer_email: document.getElementById('inp-email').value.trim(),
+    buyer_note:  document.getElementById('inp-note').value.trim(),
+    updated_by:  'onodera',
+  };
+  const data = await apiFetch(API+'?action=create', {method:'POST', body:JSON.stringify(body)});
+  if (data.success) {
+    hideModal('create-modal');
+    showToast(t('created'));
+    loadOrders();
+  } else {
+    showToast(data.message || 'エラーが発生しました');
+  }
+}
+
+// ── ステータス更新 ────────────────────────────────────────────
+function showAdvanceModal() {
+  if (!currentOrder) return;
+  const curIdx = STATUS_ORDER.indexOf(currentOrder.status);
+  if (curIdx >= STATUS_ORDER.length - 1) return;
+  const nextKey = STATUS_ORDER[curIdx+1];
+  const nextS = STATUSES[lang][nextKey] || {label:nextKey};
+  const curS  = STATUSES[lang][currentOrder.status] || {label:currentOrder.status};
+  document.getElementById('advance-info').innerHTML =
+    `<strong>${curS.label}</strong> → <strong style="color:var(--accent)">${nextS.label}</strong>`;
+  document.getElementById('inp-memo').value = '';
+  document.getElementById('advance-modal').classList.add('show');
+}
+
+async function advanceStatus() {
+  if (!currentOrder) return;
+  const curIdx = STATUS_ORDER.indexOf(currentOrder.status);
+  const newStatus = STATUS_ORDER[curIdx+1];
+  const body = {
+    id:         currentOrder.id,
+    status:     newStatus,
+    updated_by: 'onodera',
+    note:       document.getElementById('inp-memo').value.trim(),
+  };
+  const data = await apiFetch(API+'?action=update_status', {method:'POST', body:JSON.stringify(body)});
+  if (data.success) {
+    hideModal('advance-modal');
+    showToast(t('updated'));
+    const detail = await apiFetch(`${API}?action=get&id=${currentOrder.id}`);
+    if (detail.success) {
+      currentOrder = detail.order;
+      currentOrder._logs = detail.logs || [];
+      renderDetail();
+    }
+  } else {
+    showToast(data.message || 'エラーが発生しました');
+  }
+}
+
+// ── キャンセル ───────────────────────────────────────────────
+function selectCancelReason(reason) {
+  selectedCancelReason = reason;
+  document.getElementById('co-customer').classList.toggle('selected', reason==='cancel_customer');
+  document.getElementById('co-factory').classList.toggle('selected', reason==='cancel_factory');
+}
+
+function showCancelModal() {
+  if (!currentOrder) return;
+  selectCancelReason('cancel_customer');
+  document.getElementById('inp-cancel-note').value = '';
+  document.getElementById('cancel-modal').classList.add('show');
+}
+
+async function execCancel() {
+  if (!currentOrder) return;
+  const body = {
+    id:         currentOrder.id,
+    status:     selectedCancelReason,
+    updated_by: 'onodera',
+    note:       document.getElementById('inp-cancel-note').value.trim() || 'キャンセル',
+  };
+  const data = await apiFetch(API+'?action=update_status', {method:'POST', body:JSON.stringify(body)});
+  if (data.success) {
+    hideModal('cancel-modal');
+    showToast('キャンセルしました');
+    const detail = await apiFetch(`${API}?action=get&id=${currentOrder.id}`);
+    if (detail.success) {
+      currentOrder = detail.order;
+      currentOrder._logs = detail.logs || [];
+      renderDetail();
+    }
+  } else {
+    showToast(data.message || 'エラーが発生しました');
+  }
+}
+
+// ── 引継ぎメモ ───────────────────────────────────────────────
+async function addMemo() {
+  if (!currentOrder) return;
+  const note = document.getElementById('memo-input').value.trim();
+  if (!note) { showToast(t('memoEmpty')); return; }
+  const body = {
+    id:         currentOrder.id,
+    status:     'memo',
+    updated_by: 'onodera',
+    note:       note,
+  };
+  const data = await apiFetch(API+'?action=add_memo', {method:'POST', body:JSON.stringify(body)});
+  if (data.success) {
+    document.getElementById('memo-input').value = '';
+    showToast(t('memoSent'));
+    // Refresh detail
+    const detail = await apiFetch(`${API}?action=get&id=${currentOrder.id}`);
+    if (detail.success) {
+      currentOrder = detail.order;
+      currentOrder._logs = detail.logs || [];
+      renderDetail();
+    }
+  } else {
+    showToast('エラーが発生しました');
+  }
+}
+
+// ── マスター機能 ─────────────────────────────────────────────
+function onLogoTap() {
+  logoTapCount++;
+  clearTimeout(logoTapTimer);
+  if (logoTapCount >= 5) {
+    logoTapCount = 0;
+    if (!masterMode) {
+      resetPin();
+      document.getElementById('pin-modal').classList.add('show');
+    } else {
+      masterMode = false;
+      document.getElementById('master-badge').classList.remove('visible');
+      document.getElementById('master-panel').classList.remove('visible');
+      if (currentOrder) document.getElementById('master-btns').style.display = 'none';
+      showToast(t('masterOff'));
+    }
+  } else {
+    logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 1500);
+  }
+}
+
+let pinValue = '';
+function resetPin() {
+  pinValue = '';
+  document.getElementById('pin-error').textContent = '';
+  for (let i=0;i<8;i++) document.getElementById('pd-'+i).classList.remove('filled');
+}
+
+function pinKey(k) {
+  if (k === 'clear') {
+    if (pinValue.length > 0) {
+      pinValue = pinValue.slice(0,-1);
+      document.getElementById('pd-'+pinValue.length).classList.remove('filled');
+    }
+    return;
+  }
+  if (pinValue.length >= 8) return;
+  pinValue += k;
+  document.getElementById('pd-'+(pinValue.length-1)).classList.add('filled');
+  if (pinValue.length === MASTER_PIN.length) {
+    setTimeout(() => {
+      if (pinValue === MASTER_PIN) {
+        masterMode = true;
+        document.getElementById('master-badge').classList.add('visible');
+        if (currentOrder) document.getElementById('master-btns').style.display = 'flex';
+        hideModal('pin-modal');
+        renderMasterPanel();
+        showToast(t('masterOn'));
+      } else {
+        document.getElementById('pin-error').textContent = '❌ PINが違います';
+        setTimeout(resetPin, 1000);
+      }
+    }, 100);
+  }
+}
+
+async function revertStatus() {
+  if (!currentOrder || !masterMode) return;
+  const curIdx = STATUS_ORDER.indexOf(currentOrder.status);
+  if (curIdx <= 0) { showToast('これ以上戻せません'); return; }
+  if (!confirm(t('revertConfirm'))) return;
+  const prevStatus = STATUS_ORDER[curIdx-1];
+  const body = { id:currentOrder.id, status:prevStatus, updated_by:'onodera', note:'[マスター] ステータスを戻しました' };
+  const data = await apiFetch(API+'?action=update_status', {method:'POST', body:JSON.stringify(body)});
+  if (data.success) {
+    showToast(t('reverted'));
+    const detail = await apiFetch(`${API}?action=get&id=${currentOrder.id}`);
+    if (detail.success) {
+      currentOrder = detail.order;
+      currentOrder._logs = detail.logs || [];
+      renderDetail();
+    }
+  }
+}
+
+async function deleteOrder() {
+  if (!currentOrder || !masterMode) return;
+  if (!confirm(t('deleteConfirm'))) return;
+  const data = await apiFetch(API+'?action=delete&id='+currentOrder.id, {method:'POST', body:JSON.stringify({id:currentOrder.id})});
+  if (data.success) {
+    showToast(t('deleted'));
+    showDashboard();
+  } else {
+    showToast(data.message || 'エラーが発生しました');
+  }
+}
+
+// ── ユーティリティ ───────────────────────────────────────────
+function hideModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── PWA / Service Worker / Push通知 ─────────────────────────
+async function registerSW() {
+  return;
+}
+
+function updateNotifBtn() {
+  const btn = document.getElementById('notif-btn');
+  if (!btn) return;
+  const perm = Notification.permission;
+  if (perm === 'granted') {
+    btn.textContent = '🔔'; btn.classList.add('enabled');
+    btn.title = '通知有効（クリックで再登録）';
+  } else if (perm === 'denied') {
+    btn.textContent = '🔕'; btn.classList.add('denied');
+    btn.title = 'ブラウザの設定から通知を許可してください';
+  } else {
+    btn.textContent = '🔔';
+    btn.title = 'クリックしてプッシュ通知を有効にする';
+  }
+}
+
+async function enablePush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    alert('このブラウザはプッシュ通知に対応していません'); return;
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { updateNotifBtn(); return; }
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) await existing.unsubscribe();
+    const vapidKey = urlBase64ToUint8Array('BNaL2HSwCwuiSw6wQXMD-mqZrqNoa9eQWAQ7k6_4rIocK64uhBGs4rYI9ZahH1Hk1j1gSExWfJ2FZBlwWpOhLRk');
+    const sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:vapidKey});
+    const userName = localStorage.getItem('push_user') || 'default';
+    localStorage.setItem('push_user', userName);
+    await fetch('subscribe.php', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({...sub.toJSON(), user_name: userName})});
+    updateNotifBtn();
+    showToast('✅ プッシュ通知を有効にしました（'+userName+'）');
+  } catch(e) {
+    console.log('Push setup:', e);
+    showToast('通知の設定に失敗しました: '+e.message);
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── 施工項目タブ ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+let projTabFilter = 'all';
+let projTabData = [];
+
+async function initProjectsTab() {
+  await loadProjects();
+  projTabData = schProjects;
+  renderProjectsTab();
+}
+
+function setProjFilter(btn) {
+  document.querySelectorAll('#projects-view .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  projTabFilter = btn.dataset.pfilter;
+  renderProjectsTab();
+}
+
+function renderProjectsTab() {
+  const listBody = document.getElementById('projects-list-body');
+  const detailBody = document.getElementById('projects-detail-body');
+  detailBody.style.display = 'none';
+  listBody.style.display = 'block';
+
+  let items = projTabData;
+  if (projTabFilter !== 'all') items = items.filter(p => p.status === projTabFilter);
+
+  if (items.length === 0) {
+    listBody.innerHTML = '<div class="empty"><div class="empty-icon">🏗</div><p>施工項目がありません</p></div>';
+    return;
+  }
+
+  listBody.innerHTML = items.map(p => {
+    const statusLabel = p.status === 'active' ? '進行中' : (p.status === 'completed' ? '完了' : '中止');
+    const statusClass = p.status === 'active' ? 'active' : 'completed';
+    const period = (p.start_date && p.end_date) ? `${p.start_date} 〜 ${p.end_date}` : (p.start_date || '未定');
+    return `<div class="sch-project-card" style="border-left-color:${p.color||'var(--primary)'}" onclick="openProjectsTabDetail(${p.id})">
+      <div class="sch-project-top">
+        <span class="sch-project-name">${escHtml(p.name)}</span>
+        <span class="sch-project-status ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="sch-project-meta">
+        ${p.client_name ? '🏢 '+escHtml(p.client_name)+' · ' : ''}
+        ${p.location ? '📍 '+escHtml(p.location)+' · ' : ''}${period}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openProjectsTabDetail(id) {
+  const proj = schProjects.find(p => p.id == id);
+  if (!proj) return;
+
+  // スケジュール取得
+  const schData = await apiFetch(`${API}?action=schedule_by_project&project_id=${id}`).catch(()=>({success:false}));
+  const entries = schData.success ? (schData.entries || []) : [];
+
+  // 申し送り取得
+  const noteData = await apiFetch(`${API}?action=site_notes_list&project_id=${id}`).catch(()=>({success:false}));
+  const notes = noteData.success ? (noteData.notes || []) : [];
+
+  const listBody = document.getElementById('projects-list-body');
+  const detailBody = document.getElementById('projects-detail-body');
+  listBody.style.display = 'none';
+  detailBody.style.display = 'block';
+
+  const statusLabel = proj.status === 'active' ? '進行中' : (proj.status === 'completed' ? '完了' : '中止');
+  const statusClass = proj.status === 'active' ? 'active' : 'completed';
+
+  let html = `
+  <div style="margin-bottom:12px;display:flex;gap:8px">
+    <button class="btn-secondary" onclick="renderProjectsTab()" style="padding:8px 14px;font-size:13px">← 施工一覧</button>
+    <button class="btn-secondary" style="padding:8px 14px;font-size:13px" onclick="showProjectModal(${proj.id})">✏ 編集</button>
+  </div>
+
+  <div class="sch-project-card" style="border-left-color:${proj.color||'var(--primary)'};cursor:default">
+    <div class="sch-project-top">
+      <span class="sch-project-name" style="font-size:18px">${escHtml(proj.name)}</span>
+      <span class="sch-project-status ${statusClass}">${statusLabel}</span>
+    </div>
+    <div class="sch-project-meta" style="font-size:13px;margin-top:4px">
+      ${proj.client_name ? '🏢 '+escHtml(proj.client_name) : ''}
+      ${proj.location ? ' · 📍 '+escHtml(proj.location) : ''}
+      ${proj.start_date ? ' · 📅 '+proj.start_date+'〜'+(proj.end_date||'') : ''}
+    </div>
+    ${proj.notes ? '<div style="margin-top:8px;font-size:13px;color:var(--muted)">'+escHtml(proj.notes)+'</div>' : ''}
+  </div>
+
+  <!-- スケジュール -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px">
+    <h4 style="color:var(--muted);font-size:13px">📅 スケジュール（${entries.length}件）</h4>
+    <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="showScheduleModalForProject(${proj.id})">＋ 追加</button>
+  </div>`;
+
+  if (entries.length === 0) {
+    html += '<p style="color:var(--muted);font-size:13px;padding:8px 0">スケジュールがありません</p>';
+  } else {
+    entries.forEach(e => {
+      const staffNames = (e.staff||[]).map(uid => USERS[uid]||uid).join(', ');
+      html += `<div class="sch-day-block" onclick="openScheduleDetail(${e.id})" style="cursor:pointer">
+        <div class="sch-day-header">${e.date} ${e.start_time?e.start_time+'〜'+(e.end_time||''):''}</div>
+        <div style="font-size:13px">${escHtml(e.title)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">👥 ${staffNames||'未割当'}</div>
+      </div>`;
+    });
+  }
+
+  // 申し送り
+  html += `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px">
+    <h4 style="color:var(--muted);font-size:13px">💬 申し送り（${notes.length}件）</h4>
+  </div>`;
+
+  const sortedNotes = [...notes].reverse();
+  if (sortedNotes.length === 0) {
+    html += '<p style="color:var(--muted);font-size:13px;padding:8px 0">申し送りがありません</p>';
+  } else {
+    sortedNotes.slice(0, 5).forEach(n => {
+      const userName = USERS[n.user_id] || n.user_id || '不明';
+      const time = n.created_at ? n.created_at.substring(0, 16) : '';
+      html += `<div class="site-note-item">
+        <div class="site-note-meta">
+          <span class="site-note-user">${escHtml(userName)}</span>
+          <span class="site-note-time">${time}</span>
+        </div>
+        <div class="site-note-body">${escHtml(n.body)}</div>
+      </div>`;
+    });
+    if (notes.length > 5) {
+      html += `<p style="color:var(--muted);font-size:12px;text-align:center">他 ${notes.length-5}件</p>`;
+    }
+  }
+
+  // 申し送り投稿フォーム
+  html += `<div style="display:flex;gap:8px;margin-top:8px">
+    <select class="sch-user-select" id="proj-tab-note-user" style="min-width:80px;max-width:100px"></select>
+    <textarea class="site-note-input" id="proj-tab-note-input" placeholder="申し送りを入力..." rows="1"></textarea>
+    <button class="site-note-send" onclick="postProjectTabNote(${proj.id})">送信</button>
+  </div>`;
+
+  detailBody.innerHTML = html;
+
+  // ユーザーセレクト構築
+  const sel = document.getElementById('proj-tab-note-user');
+  if (sel) {
+    Object.entries(USERS).forEach(([uid, name]) => {
+      const cfg = (typeof APP_CONFIG !== 'undefined') ? APP_CONFIG.users[uid] : null;
+      if (cfg && cfg.role !== 'china') {
+        sel.innerHTML += `<option value="${uid}">${name}</option>`;
+      }
+    });
+  }
+}
+
+function showScheduleModalForProject(projectId) {
+  showScheduleModal();
+  // 現場を自動選択
+  setTimeout(() => {
+    document.getElementById('sch-inp-project').value = projectId;
+  }, 50);
+}
+
+async function postProjectTabNote(projectId) {
+  const body = document.getElementById('proj-tab-note-input').value.trim();
+  const userId = document.getElementById('proj-tab-note-user').value;
+  if (!body) { showToast('申し送り内容を入力してください'); return; }
+  const data = await apiFetch(`${API}?action=site_note_create`, {
+    method:'POST', body: JSON.stringify({ project_id: projectId, user_id: userId, body })
+  });
+  if (data.success) {
+    showToast('✅ 申し送りを投稿しました');
+    openProjectsTabDetail(projectId);
+  } else {
+    showToast(data.message || 'エラーが発生しました');
+  }
+}
+
+// 顧客タブから施工項目へジャンプ
+function filterProjectsByClient(clientName) {
+  switchTab('projects');
+  projTabData = schProjects.filter(p => p.client_name === clientName);
+  renderProjectsTab();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── マスター機能制御 ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+const FEATURE_LABELS = {
+  orders:'発注管理', schedule:'スケジュール', accounting:'経理',
+  attendance:'勤怠管理', gps:'GPS追跡', notifications:'通知管理',
+  featureControl:'機能ON/OFF制御', userManagement:'ユーザー管理',
+  masterRevert:'ステータス巻き戻し', masterDelete:'注文削除',
+};
+
+// localStorageに保存されたオーバーライド設定を読み込む
+function loadFeatureOverrides() {
+  try {
+    return JSON.parse(localStorage.getItem('ago_feature_overrides') || '{}');
+  } catch(e) { return {}; }
+}
+
+function saveFeatureOverrides(overrides) {
+  localStorage.setItem('ago_feature_overrides', JSON.stringify(overrides));
+}
+
+// 実効的な権限を取得（config + オーバーライド）
+function getEffectivePermission(role, feature) {
+  if (typeof APP_CONFIG === 'undefined') return true;
+  const base = APP_CONFIG.rolePermissions[role] ? APP_CONFIG.rolePermissions[role][feature] : false;
+  const overrides = loadFeatureOverrides();
+  // ロール単位のオーバーライド
+  if (overrides['role_'+role] && typeof overrides['role_'+role][feature] !== 'undefined') {
+    return overrides['role_'+role][feature];
+  }
+  return base;
+}
+
+function getUserEffectivePermission(userId, feature) {
+  if (typeof APP_CONFIG === 'undefined') return true;
+  const user = APP_CONFIG.users[userId];
+  if (!user) return false;
+  const overrides = loadFeatureOverrides();
+  // ユーザー単位のオーバーライド（最優先）
+  if (overrides['user_'+userId] && typeof overrides['user_'+userId][feature] !== 'undefined') {
+    return overrides['user_'+userId][feature];
+  }
+  return getEffectivePermission(user.role, feature);
+}
+
+function renderMasterPanel() {
+  if (!masterMode) {
+    document.getElementById('master-panel').classList.remove('visible');
+    return;
+  }
+  document.getElementById('master-panel').classList.add('visible');
+
+  const overrides = loadFeatureOverrides();
+  const features = Object.keys(FEATURE_LABELS);
+
+  // ロール別の機能制御
+  const roles = ['master','office','field','china'];
+  let html = '';
+  roles.forEach(role => {
+    html += `<div style="grid-column:1/-1;font-size:12px;font-weight:700;color:var(--muted);margin-top:8px">${role.toUpperCase()}</div>`;
+    features.forEach(f => {
+      const baseVal = APP_CONFIG.rolePermissions[role] ? APP_CONFIG.rolePermissions[role][f] : false;
+      const overrideVal = overrides['role_'+role] && typeof overrides['role_'+role][f] !== 'undefined'
+        ? overrides['role_'+role][f] : baseVal;
+      const checked = overrideVal ? 'checked' : '';
+      html += `<label class="master-feature-item">
+        <input type="checkbox" data-role="${role}" data-feature="${f}" ${checked}>
+        ${FEATURE_LABELS[f]}
+      </label>`;
+    });
+  });
+  document.getElementById('master-feature-list').innerHTML = html;
+
+  // ユーザーセレクト
+  const sel = document.getElementById('master-user-select');
+  const currentVal = sel.value;
+  sel.innerHTML = '';
+  Object.entries(USERS).forEach(([id, name]) => {
+    sel.innerHTML += `<option value="${id}">${name}</option>`;
+  });
+  if (currentVal) sel.value = currentVal;
+  renderUserFeatures();
+}
+
+function renderUserFeatures() {
+  const userId = document.getElementById('master-user-select').value;
+  if (!userId) return;
+  const user = APP_CONFIG.users[userId];
+  if (!user) return;
+  const overrides = loadFeatureOverrides();
+  const features = Object.keys(FEATURE_LABELS);
+
+  let html = '';
+  features.forEach(f => {
+    const effectiveVal = getUserEffectivePermission(userId, f);
+    const hasUserOverride = overrides['user_'+userId] && typeof overrides['user_'+userId][f] !== 'undefined';
+    const checked = effectiveVal ? 'checked' : '';
+    const style = hasUserOverride ? 'border-color:var(--yellow)' : '';
+    html += `<label class="master-feature-item" style="${style}">
+      <input type="checkbox" data-user="${userId}" data-feature="${f}" ${checked}>
+      ${FEATURE_LABELS[f]}
+    </label>`;
+  });
+  document.getElementById('master-user-features').innerHTML = html;
+}
+
+function saveMasterFeatures() {
+  const overrides = loadFeatureOverrides();
+
+  // ロール別設定の収集
+  document.querySelectorAll('#master-feature-list input[data-role]').forEach(cb => {
+    const role = cb.dataset.role;
+    const feature = cb.dataset.feature;
+    const key = 'role_' + role;
+    if (!overrides[key]) overrides[key] = {};
+    overrides[key][feature] = cb.checked;
+  });
+
+  // ユーザー別設定の収集
+  document.querySelectorAll('#master-user-features input[data-user]').forEach(cb => {
+    const userId = cb.dataset.user;
+    const feature = cb.dataset.feature;
+    const key = 'user_' + userId;
+    if (!overrides[key]) overrides[key] = {};
+    overrides[key][feature] = cb.checked;
+  });
+
+  saveFeatureOverrides(overrides);
+  applyFeatureVisibility();
+  showToast('✅ 機能設定を保存しました');
+}
+
+// タブの表示/非表示を現在のユーザー権限に基づいて切り替え
+function applyFeatureVisibility() {
+  // 現在のログインユーザーを特定（簡易: att-user-selectの値 or 'kanno'）
+  const currentUser = localStorage.getItem('ago_current_user') || 'kanno';
+
+  const tabMap = {
+    schedule: 'tab-schedule',
+    attendance: 'tab-attendance',
+    accounting: 'tab-accounting',
+  };
+
+  Object.entries(tabMap).forEach(([feature, tabId]) => {
+    const el = document.getElementById(tabId);
+    if (el) {
+      const allowed = getUserEffectivePermission(currentUser, feature);
+      el.style.display = allowed ? '' : 'none';
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── 経理機能 ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+let currentAccSub = 'summary';
+const EXPENSE_CATEGORIES = ['材料費','交通費','工具費','外注費','通信費','消耗品費','その他'];
+const INV_STATUS_LABELS = {draft:'下書き',sent:'送付済',paid:'入金済'};
+
+function initAccountingView() {
+  const monthInput = document.getElementById('acc-summary-month');
+  if (!monthInput.value) {
+    const now = new Date();
+    monthInput.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  }
+  const expMonth = document.getElementById('acc-expense-month');
+  if (!expMonth.value) expMonth.value = monthInput.value;
+  switchAccSub('summary');
+}
+
+function switchAccSub(sub) {
+  currentAccSub = sub;
+  ['summary','invoices','po','expenses'].forEach(name => {
+    document.getElementById('acc-sub-'+name).classList.toggle('active', name===sub);
+    document.getElementById('acc-'+name+'-view').style.display = name===sub ? 'block' : 'none';
+  });
+  if (sub === 'summary') loadFinanceSummary();
+  if (sub === 'invoices') loadInvoices('invoice');
+  if (sub === 'po') loadInvoices('purchase_order');
+  if (sub === 'expenses') loadExpenses();
+}
+
+// ── 収支サマリー ─────────────────────────────────────────────
+async function loadFinanceSummary() {
+  const month = document.getElementById('acc-summary-month').value;
+  if (!month) return;
+  const data = await apiFetch(`${API}?action=finance_summary&month=${month}`).catch(()=>({success:false}));
+  const container = document.getElementById('acc-summary-cards');
+  if (!data.success) { container.innerHTML = '<p style="color:var(--muted);text-align:center">取得失敗</p>'; return; }
+
+  const profitColor = data.profit >= 0 ? 'var(--green)' : 'var(--red)';
+  container.innerHTML = `
+    <div class="acc-summary-card">
+      <div class="acc-summary-num" style="color:var(--green)">¥${data.revenue.toLocaleString()}</div>
+      <div class="acc-summary-label">売上（請求書）</div>
+    </div>
+    <div class="acc-summary-card">
+      <div class="acc-summary-num" style="color:var(--red)">¥${data.expenses.toLocaleString()}</div>
+      <div class="acc-summary-label">経費</div>
+    </div>
+    <div class="acc-summary-card">
+      <div class="acc-summary-num" style="color:var(--orange)">¥${data.purchase_orders.toLocaleString()}</div>
+      <div class="acc-summary-label">発注書</div>
+    </div>
+    <div class="acc-summary-card">
+      <div class="acc-summary-num" style="color:${profitColor}">¥${data.profit.toLocaleString()}</div>
+      <div class="acc-summary-label">利益（売上−経費）</div>
+    </div>`;
+}
+
+// ── 請求書・発注書一覧 ───────────────────────────────────────
+async function loadInvoices(docType) {
+  const data = await apiFetch(`${API}?action=invoices_list&doc_type=${docType}`).catch(()=>({success:false}));
+  const items = data.success ? (data.invoices || []) : [];
+  const containerId = docType === 'invoice' ? 'acc-invoices-list' : 'acc-po-list';
+  const container = document.getElementById(containerId);
+  const label = docType === 'invoice' ? '請求書' : '発注書';
+
+  if (items.length === 0) {
+    container.innerHTML = `<div class="empty"><div class="empty-icon">📄</div><p>${label}がありません</p></div>`;
+    return;
+  }
+  container.innerHTML = items.map(inv => {
+    const statusLabel = INV_STATUS_LABELS[inv.status] || inv.status;
+    const statusClass = inv.status;
+    return `<div class="acc-card" onclick="openInvoiceDetail(${inv.id})">
+      <div class="acc-card-top">
+        <span class="acc-doc-number">${escHtml(inv.doc_number)}</span>
+        <span class="acc-status ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="acc-subject">${escHtml(inv.subject)}</div>
+      <div class="acc-meta">
+        ${inv.client_name ? escHtml(inv.client_name)+' · ' : ''}${inv.issue_date||''}
+        <span class="acc-amount" style="float:right">¥${parseInt(inv.total||0).toLocaleString()}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── 請求書/発注書 詳細 ───────────────────────────────────────
+async function openInvoiceDetail(id) {
+  const data = await apiFetch(`${API}?action=invoice_get&id=${id}`).catch(()=>({success:false}));
+  if (!data.success || !data.invoice) { showToast('データが見つかりません'); return; }
+  const inv = data.invoice;
+  showInvoiceModal(inv.doc_type, inv);
+}
+
+// ── 請求書/発注書 モーダル ───────────────────────────────────
+function showInvoiceModal(docType, editData) {
+  const isEdit = editData && editData.id;
+  const label = docType === 'purchase_order' ? '発注書' : '請求書';
+  document.getElementById('inv-modal-title').textContent = isEdit ? `${label}編集` : `${label}作成`;
+  document.getElementById('inv-edit-id').value = isEdit ? editData.id : '';
+  document.getElementById('inv-doc-type').value = docType;
+  document.getElementById('inv-inp-subject').value = isEdit ? (editData.subject||'') : '';
+  document.getElementById('inv-inp-client').value = isEdit ? (editData.client_name||'') : '';
+  document.getElementById('inv-inp-issue').value = isEdit ? (editData.issue_date||'') : formatDate(new Date());
+  document.getElementById('inv-inp-due').value = isEdit ? (editData.due_date||'') : '';
+  document.getElementById('inv-inp-amount').value = isEdit ? (editData.amount||0) : 0;
+  document.getElementById('inv-inp-tax').value = isEdit ? (editData.tax||0) : 0;
+  document.getElementById('inv-inp-total').value = isEdit ? (editData.total||0) : 0;
+  document.getElementById('inv-inp-status').value = isEdit ? (editData.status||'draft') : 'draft';
+  document.getElementById('inv-inp-notes').value = isEdit ? (editData.notes||'') : '';
+
+  // 現場ドロップダウン
+  const projSel = document.getElementById('inv-inp-project');
+  projSel.innerHTML = '<option value="">-- なし --</option>';
+  schProjects.forEach(p => {
+    projSel.innerHTML += `<option value="${p.id}">${escHtml(p.name)}</option>`;
+  });
+  if (isEdit && editData.project_id) projSel.value = editData.project_id;
+
+  // 明細行
+  const itemsContainer = document.getElementById('inv-items-container');
+  itemsContainer.innerHTML = '';
+  if (isEdit && editData.items && editData.items.length > 0) {
+    editData.items.forEach(item => addInvItemRow(item));
+  } else {
+    addInvItemRow();
+  }
+
+  document.getElementById('invoice-modal').classList.add('show');
+}
+
+let invItemCounter = 0;
+function addInvItemRow(data) {
+  invItemCounter++;
+  const id = invItemCounter;
+  const container = document.getElementById('inv-items-container');
+  const div = document.createElement('div');
+  div.className = 'inv-item-row-input';
+  div.id = 'inv-item-'+id;
+  div.innerHTML = `
+    <input class="desc" type="text" placeholder="内容" value="${escHtml((data&&data.description)||'')}">
+    <input class="qty" type="number" min="1" value="${(data&&data.qty)||1}" onchange="calcInvItems()">
+    <input class="price" type="number" min="0" value="${(data&&data.unit_price)||0}" onchange="calcInvItems()">
+    <button class="inv-item-remove" onclick="this.parentElement.remove();calcInvItems()">✕</button>`;
+  container.appendChild(div);
+}
+
+function calcInvItems() {
+  let total = 0;
+  document.querySelectorAll('#inv-items-container .inv-item-row-input').forEach(row => {
+    const qty = parseInt(row.querySelector('.qty').value) || 0;
+    const price = parseInt(row.querySelector('.price').value) || 0;
+    total += qty * price;
+  });
+  document.getElementById('inv-inp-amount').value = total;
+  calcInvTotal();
+}
+
+function calcInvTotal() {
+  const amount = parseInt(document.getElementById('inv-inp-amount').value) || 0;
+  const tax = parseInt(document.getElementById('inv-inp-tax').value) || 0;
+  document.getElementById('inv-inp-total').value = amount + tax;
+}
+
+async function saveInvoice() {
+  const subject = document.getElementById('inv-inp-subject').value.trim();
+  if (!subject) { showToast('件名は必須です'); return; }
+
+  const editId = document.getElementById('inv-edit-id').value;
+  const items = [];
+  document.querySelectorAll('#inv-items-container .inv-item-row-input').forEach(row => {
+    const desc = row.querySelector('.desc').value.trim();
+    if (desc) {
+      items.push({
+        description: desc,
+        qty: parseInt(row.querySelector('.qty').value) || 1,
+        unit_price: parseInt(row.querySelector('.price').value) || 0,
+      });
+    }
+  });
+
+  const body = {
+    doc_type: document.getElementById('inv-doc-type').value,
+    subject,
+    client_name: document.getElementById('inv-inp-client').value.trim(),
+    project_id: document.getElementById('inv-inp-project').value || null,
+    issue_date: document.getElementById('inv-inp-issue').value,
+    due_date: document.getElementById('inv-inp-due').value,
+    amount: parseInt(document.getElementById('inv-inp-amount').value) || 0,
+    tax: parseInt(document.getElementById('inv-inp-tax').value) || 0,
+    status: document.getElementById('inv-inp-status').value,
+    notes: document.getElementById('inv-inp-notes').value.trim(),
+    items,
+    created_by: 'onodera',
+  };
+
+  let action = 'invoice_create';
+  if (editId) { action = 'invoice_update'; body.id = parseInt(editId); }
+
+  const data = await apiFetch(`${API}?action=${action}`, {method:'POST', body:JSON.stringify(body)});
+  if (data.success) {
+    hideModal('invoice-modal');
+    showToast(editId ? '更新しました' : '作成しました');
+    if (currentAccSub === 'invoices') loadInvoices('invoice');
+    if (currentAccSub === 'po') loadInvoices('purchase_order');
+    if (currentAccSub === 'summary') loadFinanceSummary();
+  } else {
+    showToast(data.message || 'エラーが発生しました');
+  }
+}
+
+// ── 経費 ─────────────────────────────────────────────────────
+async function loadExpenses() {
+  const month = document.getElementById('acc-expense-month').value;
+  const url = month ? `${API}?action=expenses_list&month=${month}` : `${API}?action=expenses_list`;
+  const data = await apiFetch(url).catch(()=>({success:false}));
+  const items = data.success ? (data.expenses || []) : [];
+  const container = document.getElementById('acc-expenses-list');
+
+  if (items.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">💸</div><p>経費がありません</p></div>';
+    return;
+  }
+
+  let total = 0;
+  let html = '';
+  items.forEach(exp => {
+    total += parseInt(exp.amount) || 0;
+    const paidByName = USERS[exp.paid_by] || exp.paid_by || '';
+    html += `<div class="exp-card">
+      <div class="exp-info">
+        <span class="exp-cat">${escHtml(exp.category)}</span>
+        <div class="exp-desc">${escHtml(exp.description)}</div>
+        <div class="exp-meta">${exp.expense_date||''} ${paidByName?' · '+escHtml(paidByName):''}</div>
+      </div>
+      <span class="exp-amount">-¥${parseInt(exp.amount||0).toLocaleString()}</span>
+    </div>`;
+  });
+
+  container.innerHTML = `<div style="text-align:right;padding:4px 0 8px;font-size:13px;color:var(--muted)">合計: <strong style="color:var(--red)">¥${total.toLocaleString()}</strong>（${items.length}件）</div>` + html;
+}
+
+function showExpenseModal() {
+  document.getElementById('exp-inp-desc').value = '';
+  document.getElementById('exp-inp-amount').value = '0';
+  document.getElementById('exp-inp-date').value = formatDate(new Date());
+  document.getElementById('exp-inp-notes').value = '';
+  document.getElementById('exp-inp-category').value = '材料費';
+
+  // 現場ドロップダウン
+  const projSel = document.getElementById('exp-inp-project');
+  projSel.innerHTML = '<option value="">-- なし --</option>';
+  schProjects.forEach(p => {
+    projSel.innerHTML += `<option value="${p.id}">${escHtml(p.name)}</option>`;
+  });
+
+  // 支払者ドロップダウン
+  const paidSel = document.getElementById('exp-inp-paidby');
+  paidSel.innerHTML = '<option value="">-- 選択 --</option>';
+  Object.entries(USERS).forEach(([id, name]) => {
+    paidSel.innerHTML += `<option value="${id}">${name}</option>`;
+  });
+
+  document.getElementById('expense-modal').classList.add('show');
+}
+
+async function saveExpense() {
+  const desc = document.getElementById('exp-inp-desc').value.trim();
+  if (!desc) { showToast('内容は必須です'); return; }
+
+  const body = {
+    category: document.getElementById('exp-inp-category').value,
+    description: desc,
+    amount: parseInt(document.getElementById('exp-inp-amount').value) || 0,
+    expense_date: document.getElementById('exp-inp-date').value,
+    project_id: document.getElementById('exp-inp-project').value || null,
+    paid_by: document.getElementById('exp-inp-paidby').value,
+    notes: document.getElementById('exp-inp-notes').value.trim(),
+    created_by: 'onodera',
+  };
+
+  const data = await apiFetch(`${API}?action=expense_create`, {method:'POST', body:JSON.stringify(body)});
+  if (data.success) {
+    hideModal('expense-modal');
+    showToast('✅ 経費を登録しました');
+    loadExpenses();
+    if (currentAccSub === 'summary') loadFinanceSummary();
+  } else {
+    showToast(data.message || 'エラーが発生しました');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── 個別指示 ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+function initInstructionsView() {
+  buildInsUserSelects();
+  loadInstructions();
+}
+
+function buildInsUserSelects() {
+  const selects = ['ins-user-select','ins-from-select','ins-to-select'];
+  selects.forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '';
+    Object.entries(USERS).forEach(([id, name]) => {
+      sel.innerHTML += `<option value="${id}">${name}</option>`;
+    });
+    if (current) sel.value = current;
+  });
+}
+
+async function loadInstructions() {
+  const userId = document.getElementById('ins-user-select').value;
+  if (!userId) return;
+  document.getElementById('ins-detail-area').style.display = 'none';
+
+  const data = await apiFetch(`${API}?action=instructions_list&user_id=${userId}`).catch(()=>({success:false}));
+  const items = data.success ? (data.instructions || []) : [];
+  const container = document.getElementById('ins-list');
+
+  if (items.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">✉</div><p>指示がありません</p></div>';
+    return;
+  }
+
+  container.innerHTML = items.map(ins => {
+    const isReceived = ins.to_user === userId;
+    const unread = isReceived && !ins.is_read;
+    const fromName = USERS[ins.from_user] || ins.from_user;
+    const toName = USERS[ins.to_user] || ins.to_user;
+    const direction = isReceived ? `${fromName} → あなた` : `あなた → ${toName}`;
+    const time = ins.created_at ? ins.created_at.substring(0, 16) : '';
+    return `<div class="ins-card ${unread?'unread':''}" onclick="openInstruction(${ins.id},'${userId}')">
+      <div class="ins-card-top">
+        <span class="ins-subject">${unread?'<span class="ins-badge-unread">未読</span> ':''}${escHtml(ins.subject)}</span>
+        <span class="ins-time">${time}</span>
+      </div>
+      ${ins.body ? `<div class="ins-body-preview">${escHtml(ins.body)}</div>` : ''}
+      <div class="ins-from-to">${direction}</div>
+    </div>`;
+  }).join('');
+}
+
+async function openInstruction(id, currentUserId) {
+  const data = await apiFetch(`${API}?action=instructions_list&user_id=${currentUserId}`).catch(()=>({success:false}));
+  const items = data.success ? (data.instructions || []) : [];
+  const ins = items.find(i => i.id == id);
+  if (!ins) { showToast('指示が見つかりません'); return; }
+
+  // 既読にする（受信者の場合のみ）
+  if (ins.to_user === currentUserId && !ins.is_read) {
+    await apiFetch(`${API}?action=instruction_read`, {method:'POST', body:JSON.stringify({id})});
+  }
+
+  const fromName = USERS[ins.from_user] || ins.from_user;
+  const toName = USERS[ins.to_user] || ins.to_user;
+  const readStatus = ins.is_read ? `✅ 既読（${ins.read_at||''}）` : '未読';
+
+  const area = document.getElementById('ins-detail-area');
+  area.style.display = 'block';
+  area.innerHTML = `
+    <div class="ins-detail">
+      <div style="margin-bottom:8px">
+        <button class="btn-secondary" style="padding:6px 12px;font-size:12px" onclick="document.getElementById('ins-detail-area').style.display='none';loadInstructions()">← 一覧に戻る</button>
+      </div>
+      <div class="ins-detail-subject">${escHtml(ins.subject)}</div>
+      <div class="ins-detail-body">${escHtml(ins.body || '（本文なし）')}</div>
+      <div class="ins-detail-meta">
+        送信者: ${escHtml(fromName)} → 宛先: ${escHtml(toName)}<br>
+        送信日時: ${ins.created_at || ''}<br>
+        状態: ${readStatus}
+      </div>
+    </div>`;
+  document.getElementById('ins-list').innerHTML = '';
+}
+
+function showInstructionSendModal() {
+  const currentUser = document.getElementById('ins-user-select').value;
+  document.getElementById('ins-from-select').value = currentUser;
+  document.getElementById('ins-inp-subject').value = '';
+  document.getElementById('ins-inp-body').value = '';
+  document.getElementById('instruction-modal').classList.add('show');
+}
+
+async function sendInstruction() {
+  const fromUser = document.getElementById('ins-from-select').value;
+  const toUser = document.getElementById('ins-to-select').value;
+  const subject = document.getElementById('ins-inp-subject').value.trim();
+  if (!subject) { showToast('件名は必須です'); return; }
+  if (fromUser === toUser) { showToast('送信者と宛先が同じです'); return; }
+
+  const data = await apiFetch(`${API}?action=instruction_send`, {
+    method:'POST',
+    body: JSON.stringify({
+      from_user: fromUser,
+      to_user: toUser,
+      subject,
+      body: document.getElementById('ins-inp-body').value.trim(),
+    })
+  });
+  if (data.success) {
+    hideModal('instruction-modal');
+    showToast('✅ 指示を送信しました');
+    loadInstructions();
+  } else {
+    showToast(data.message || 'エラーが発生しました');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── 現場申し送り ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+let currentSiteNoteProjectId = null;
+
+async function openSiteNotes(projectId) {
+  currentSiteNoteProjectId = projectId;
+  const proj = schProjects.find(p => p.id == projectId);
+  if (!proj) return;
+
+  const data = await apiFetch(`${API}?action=site_notes_list&project_id=${projectId}`).catch(()=>({success:false}));
+  const notes = data.success ? (data.notes || []) : [];
+
+  const container = document.getElementById('sch-projects');
+  let html = `<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px">
+    <button class="btn-secondary" onclick="openProjectDetail(${projectId})" style="padding:8px 14px;font-size:13px">← 現場詳細に戻る</button>
+    <span style="font-weight:700;font-size:15px">${escHtml(proj.name)} - 申し送り</span>
+  </div>`;
+
+  html += '<div class="site-note-thread" id="site-note-thread">';
+  if (notes.length === 0) {
+    html += '<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px">申し送りはありません</p>';
+  } else {
+    notes.reverse().forEach(n => {
+      const userName = USERS[n.user_id] || n.user_id || '不明';
+      const time = n.created_at ? n.created_at.substring(0, 16) : '';
+      html += `<div class="site-note-item">
+        <div class="site-note-meta">
+          <span class="site-note-user">${escHtml(userName)}</span>
+          <span class="site-note-time">${time}</span>
+        </div>
+        <div class="site-note-body">${escHtml(n.body)}</div>
+      </div>`;
+    });
+  }
+  html += '</div>';
+
+  html += `<div class="site-note-add">
+    <select class="sch-user-select" id="site-note-user" style="min-width:80px;max-width:100px"></select>
+    <textarea class="site-note-input" id="site-note-input" placeholder="申し送りを入力..." rows="1"></textarea>
+    <button class="site-note-send" onclick="postSiteNote()">送信</button>
+  </div>`;
+
+  container.innerHTML = html;
+
+  // ユーザーセレクト構築
+  const sel = document.getElementById('site-note-user');
+  Object.entries(USERS).forEach(([id, name]) => {
+    const cfg = (typeof APP_CONFIG !== 'undefined') ? APP_CONFIG.users[id] : null;
+    if (cfg && cfg.role !== 'china') {
+      sel.innerHTML += `<option value="${id}">${name}</option>`;
+    }
+  });
+}
+
+async function postSiteNote() {
+  if (!currentSiteNoteProjectId) return;
+  const body = document.getElementById('site-note-input').value.trim();
+  const userId = document.getElementById('site-note-user').value;
+  if (!body) { showToast('申し送り内容を入力してください'); return; }
+
+  const data = await apiFetch(`${API}?action=site_note_create`, {
+    method:'POST',
+    body: JSON.stringify({
+      project_id: currentSiteNoteProjectId,
+      user_id: userId,
+      body,
+    })
+  });
+  if (data.success) {
+    showToast('✅ 申し送りを投稿しました');
+    openSiteNotes(currentSiteNoteProjectId);
+  } else {
+    showToast(data.message || 'エラーが発生しました');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── 勤怠管理 + GPS追跡 ───────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+let currentAttSub = 'clock';
+let attClockInterval = null;
+let gpsWatchId = null;
+let gpsTrackingInterval = null;
+let currentAttUser = '';
+
+function initAttendanceView() {
+  buildAttUserSelects();
+  startClockDisplay();
+  loadAttendanceToday();
+  switchAttSub('clock');
+}
+
+function buildAttUserSelects() {
+  const selects = ['att-user-select','att-monthly-user'];
+  selects.forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '';
+    Object.entries(USERS).forEach(([id, name]) => {
+      const cfg = (typeof APP_CONFIG !== 'undefined') ? APP_CONFIG.users[id] : null;
+      if (cfg && cfg.role !== 'china') {
+        sel.innerHTML += `<option value="${id}">${name}</option>`;
+      }
+    });
+    if (current) sel.value = current;
+  });
+  // 月別のデフォルト月
+  const monthInput = document.getElementById('att-monthly-month');
+  if (monthInput && !monthInput.value) {
+    const now = new Date();
+    monthInput.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  }
+}
+
+function switchAttSub(sub) {
+  currentAttSub = sub;
+  ['clock','staff','gps','monthly'].forEach(name => {
+    document.getElementById('att-sub-'+name).classList.toggle('active', name===sub);
+    const view = document.getElementById('att-'+name+'-view');
+    if (view) view.style.display = name===sub ? 'block' : 'none';
+  });
+  if (sub === 'staff') loadAttendanceAll();
+  if (sub === 'gps') loadGpsLatest();
+  if (sub === 'monthly') loadAttendanceMonthly();
+}
+
+// ── 時計表示 ─────────────────────────────────────────────────
+function startClockDisplay() {
+  if (attClockInterval) clearInterval(attClockInterval);
+  updateClockDisplay();
+  attClockInterval = setInterval(updateClockDisplay, 1000);
+}
+
+function updateClockDisplay() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('att-current-time').textContent = `${h}:${m}:${s}`;
+  const days = ['日','月','火','水','木','金','土'];
+  document.getElementById('att-current-date').textContent =
+    `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${days[now.getDay()]}）`;
+}
+
+// ── 今日の打刻状態を取得 ─────────────────────────────────────
+async function loadAttendanceToday() {
+  const userId = document.getElementById('att-user-select').value;
+  if (!userId) return;
+  currentAttUser = userId;
+  const data = await apiFetch(`${API}?action=attendance_today&user_id=${userId}`).catch(()=>({success:false}));
+
+  const btnIn = document.getElementById('att-btn-in');
+  const btnOut = document.getElementById('att-btn-out');
+  const statusIn = document.getElementById('att-status-in');
+  const statusOut = document.getElementById('att-status-out');
+
+  if (data.success && data.record) {
+    const rec = data.record;
+    if (rec.clock_in) {
+      statusIn.style.display = 'block';
+      document.getElementById('att-time-in').textContent = rec.clock_in;
+      btnIn.disabled = true;
+      btnOut.disabled = !!rec.clock_out;
+
+      if (rec.clock_out) {
+        statusOut.style.display = 'block';
+        document.getElementById('att-time-out').textContent = rec.clock_out;
+        updateGpsIndicator(false);
+      } else {
+        statusOut.style.display = 'none';
+        updateGpsIndicator(true);
+        // GPS追跡が中断されていたら再開
+        restoreGpsTracking(userId);
+      }
+    }
+  } else {
+    // 未出勤
+    btnIn.disabled = false;
+    btnOut.disabled = true;
+    statusIn.style.display = 'none';
+    statusOut.style.display = 'none';
+    updateGpsIndicator(false);
+  }
+}
+
+// ── 出勤打刻 ─────────────────────────────────────────────────
+async function clockIn() {
+  const userId = document.getElementById('att-user-select').value;
+  if (!userId) { showToast('ユーザーを選択してください'); return; }
+
+  let lat = null, lng = null;
+  try {
+    const pos = await getCurrentPosition();
+    lat = pos.coords.latitude;
+    lng = pos.coords.longitude;
+  } catch(e) { /* GPS取得失敗でも打刻は許可 */ }
+
+  const data = await apiFetch(`${API}?action=clock_in`, {
+    method:'POST',
+    body: JSON.stringify({ user_id: userId, lat, lng })
+  });
+
+  if (data.success) {
+    showToast('✅ 出勤しました（' + data.clock_in + '）');
+    loadAttendanceToday();
+    startGpsTracking(userId);
+  } else {
+    showToast(data.message || '出勤打刻に失敗しました');
+  }
+}
+
+// ── 退勤打刻 ─────────────────────────────────────────────────
+async function clockOut() {
+  const userId = document.getElementById('att-user-select').value;
+  if (!userId) return;
+
+  let lat = null, lng = null;
+  try {
+    const pos = await getCurrentPosition();
+    lat = pos.coords.latitude;
+    lng = pos.coords.longitude;
+  } catch(e) { /* GPS取得失敗でも打刻は許可 */ }
+
+  const data = await apiFetch(`${API}?action=clock_out`, {
+    method:'POST',
+    body: JSON.stringify({ user_id: userId, lat, lng })
+  });
+
+  if (data.success) {
+    showToast('⏹ 退勤しました（' + data.clock_out + '）');
+    stopGpsTracking();
+    loadAttendanceToday();
+  } else {
+    showToast(data.message || '退勤打刻に失敗しました');
+  }
+}
+
+// ── GPS追跡 ──────────────────────────────────────────────────
+function getCurrentPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('GPS非対応')); return; }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true, timeout: 10000, maximumAge: 0
+    });
+  });
+}
+
+function startGpsTracking(userId) {
+  stopGpsTracking(); // 既存を停止
+  localStorage.setItem('ago_gps_user', userId);
+  localStorage.setItem('ago_gps_active', '1');
+
+  const interval = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.gps)
+    ? (APP_CONFIG.gps.trackingInterval || 300) * 1000
+    : 300000;
+
+  // 即座に1回送信
+  sendGpsLog(userId);
+
+  // 定期送信
+  gpsTrackingInterval = setInterval(() => sendGpsLog(userId), interval);
+  updateGpsIndicator(true);
+}
+
+function stopGpsTracking() {
+  if (gpsTrackingInterval) { clearInterval(gpsTrackingInterval); gpsTrackingInterval = null; }
+  if (gpsWatchId !== null) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+  localStorage.removeItem('ago_gps_active');
+  localStorage.removeItem('ago_gps_user');
+  updateGpsIndicator(false);
+}
+
+function restoreGpsTracking(userId) {
+  if (localStorage.getItem('ago_gps_active') === '1' && !gpsTrackingInterval) {
+    startGpsTracking(userId);
+  }
+}
+
+async function sendGpsLog(userId) {
+  try {
+    const pos = await getCurrentPosition();
+    await apiFetch(`${API}?action=gps_log`, {
+      method:'POST',
+      body: JSON.stringify({
+        user_id: userId,
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+      })
+    });
+  } catch(e) { /* GPS取得失敗は無視して次の周期で再試行 */ }
+}
+
+function updateGpsIndicator(active) {
+  const container = document.getElementById('att-gps-status');
+  if (!container) return;
+  if (active) {
+    container.innerHTML = '<span class="att-gps-indicator active">📡 GPS追跡中</span>';
+  } else {
+    container.innerHTML = '<span class="att-gps-indicator inactive">GPS停止中</span>';
+  }
+}
+
+// ── スタッフ出退勤状況（管理者用）────────────────────────────
+async function loadAttendanceAll() {
+  const today = formatDate(new Date());
+  document.getElementById('att-staff-date-label').textContent = `${today} のスタッフ出退勤状況`;
+  const data = await apiFetch(`${API}?action=attendance_all&date=${today}`).catch(()=>({success:false}));
+  const records = data.success ? (data.records || []) : [];
+
+  const container = document.getElementById('att-staff-list');
+  // 全スタッフ（china除く）について表示
+  let html = '';
+  Object.entries(USERS).forEach(([id, name]) => {
+    const cfg = (typeof APP_CONFIG !== 'undefined') ? APP_CONFIG.users[id] : null;
+    if (!cfg || cfg.role === 'china') return;
+
+    const rec = records.find(r => r.user_id === id);
+    let badge, times;
+    if (!rec) {
+      badge = '<span class="att-staff-badge absent">未出勤</span>';
+      times = '--:-- 〜 --:--';
+    } else if (rec.clock_in && !rec.clock_out) {
+      badge = '<span class="att-staff-badge working">出勤中</span>';
+      times = `${rec.clock_in} 〜`;
+    } else {
+      badge = '<span class="att-staff-badge done">退勤済</span>';
+      times = `${rec.clock_in} 〜 ${rec.clock_out}`;
+    }
+
+    html += `<div class="att-staff-row">
+      <span class="att-staff-name">${escHtml(name)}</span>
+      <span class="att-staff-times">${times}</span>
+      ${badge}
+    </div>`;
+  });
+  container.innerHTML = html || '<p style="color:var(--muted);text-align:center;padding:20px">データがありません</p>';
+}
+
+// ── GPS最新位置（管理者用）────────────────────────────────────
+async function loadGpsLatest() {
+  const data = await apiFetch(`${API}?action=gps_latest`).catch(()=>({success:false}));
+  const locations = data.success ? (data.locations || []) : [];
+
+  const container = document.getElementById('att-gps-list');
+  if (locations.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">📍</div><p>位置情報がありません</p></div>';
+    return;
+  }
+
+  container.innerHTML = locations.map(loc => {
+    const name = USERS[loc.user_id] || loc.user_id;
+    const mapsUrl = `https://www.google.com/maps?q=${loc.lat},${loc.lng}`;
+    const time = loc.recorded_at ? loc.recorded_at.substring(11,19) : '';
+    const acc = loc.accuracy ? `精度: ${Math.round(loc.accuracy)}m` : '';
+    return `<div class="gps-card">
+      <div class="gps-card-top">
+        <span class="gps-card-name">${escHtml(name)}</span>
+        <span class="gps-card-time">${time} ${acc}</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}</div>
+      <a class="gps-card-link" href="${mapsUrl}" target="_blank" rel="noopener">📍 Google Mapsで開く</a>
+    </div>`;
+  }).join('');
+}
+
+// ── 月別集計 ─────────────────────────────────────────────────
+async function loadAttendanceMonthly() {
+  const userId = document.getElementById('att-monthly-user').value;
+  const month  = document.getElementById('att-monthly-month').value;
+  if (!userId || !month) return;
+
+  const data = await apiFetch(`${API}?action=attendance_list&user_id=${userId}&month=${month}`).catch(()=>({success:false}));
+  const records = data.success ? (data.records || []) : [];
+  const container = document.getElementById('att-monthly-body');
+
+  // 合計勤務時間を計算
+  let totalMinutes = 0;
+  let html = '';
+
+  records.forEach(rec => {
+    let hours = '--';
+    if (rec.clock_in && rec.clock_out) {
+      const inParts = rec.clock_in.split(':').map(Number);
+      const outParts = rec.clock_out.split(':').map(Number);
+      const inMin = inParts[0]*60 + inParts[1];
+      const outMin = outParts[0]*60 + outParts[1];
+      const diff = outMin - inMin;
+      if (diff > 0) {
+        totalMinutes += diff;
+        hours = `${Math.floor(diff/60)}h ${diff%60}m`;
+      }
+    }
+    html += `<div class="att-monthly-row">
+      <span class="att-monthly-date">${rec.date}</span>
+      <span class="att-monthly-times">${rec.clock_in||'--:--'} 〜 ${rec.clock_out||'--:--'}</span>
+      <span class="att-monthly-hours">${hours}</span>
+    </div>`;
+  });
+
+  const totalH = Math.floor(totalMinutes / 60);
+  const totalM = totalMinutes % 60;
+  const summary = `<div class="att-monthly-summary">
+    <div class="att-monthly-total">${totalH}h ${totalM}m</div>
+    <div class="att-monthly-total-label">合計勤務時間（${records.length}日出勤）</div>
+  </div>`;
+
+  container.innerHTML = summary + (html || '<p style="color:var(--muted);text-align:center;padding:20px">データがありません</p>');
+}
+
+// ── FABクリック ─────────────────────────────────────────────
+function onFabClick() {
+  if (currentTab === 'projects') {
+    showProjectModal();
+  } else if (currentTab === 'schedule') {
+    if (currentSchSub === 'projects') {
+      showProjectModal();
+    } else {
+      showScheduleModal();
+    }
+  } else {
+    showCreateModal();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── スケジュール管理 ──────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+let currentSchSub = 'overview';
+let schWeekStart = getMonday(new Date());
+let schEntries = [];
+let schProjects = [];
+
+const PROJECT_COLORS = ['#6366f1','#10b981','#f59e0b','#3b82f6','#8b5cf6','#f97316','#ef4444','#ec4899','#14b8a6','#84cc16'];
+
+// 月曜日を取得
+function getMonday(d) {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  date.setDate(diff);
+  date.setHours(0,0,0,0);
+  return date;
+}
+
+function formatDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+}
+
+function formatDateShort(d) {
+  const days = ['日','月','火','水','木','金','土'];
+  return `${d.getMonth()+1}/${d.getDate()}(${days[d.getDay()]})`;
+}
+
+function getWeekDates() {
+  const dates = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(schWeekStart);
+    d.setDate(d.getDate() + i);
+    dates.push(d);
+  }
+  return dates;
+}
+
+function schWeekMove(dir) {
+  schWeekStart.setDate(schWeekStart.getDate() + dir * 7);
+  loadScheduleData();
+}
+
+function schGoToday() {
+  schWeekStart = getMonday(new Date());
+  loadScheduleData();
+}
+
+function updateWeekLabel() {
+  const dates = getWeekDates();
+  const from = dates[0], to = dates[6];
+  document.getElementById('sch-week-label').textContent =
+    `${from.getFullYear()}年 ${from.getMonth()+1}/${from.getDate()} 〜 ${to.getMonth()+1}/${to.getDate()}`;
+}
+
+// サブタブ切替
+function switchSchSub(sub) {
+  currentSchSub = sub;
+  ['overview','timeline','projects','personal'].forEach(name => {
+    document.getElementById('sch-sub-'+name).classList.toggle('active', name===sub);
+    document.getElementById('sch-'+name).style.display = name===sub ? 'block' : 'none';
+  });
+  if (sub === 'overview') renderOverview();
+  if (sub === 'timeline') renderTimeline();
+  if (sub === 'projects') renderProjectsView();
+  if (sub === 'personal') loadPersonalSchedule();
+}
+
+// 初期化
+function initScheduleView() {
+  updateWeekLabel();
+  buildUserSelect();
+  loadScheduleData();
+  loadProjects();
+}
+
+// ── データ取得 ───────────────────────────────────────────────
+async function loadScheduleData() {
+  updateWeekLabel();
+  const dates = getWeekDates();
+  const from = formatDate(dates[0]);
+  const to = formatDate(dates[6]);
+  const data = await apiFetch(`${API}?action=schedule_list&from=${from}&to=${to}`).catch(()=>({success:false}));
+  if (data.success) {
+    schEntries = data.entries || [];
+  }
+  if (currentSchSub === 'overview') renderOverview();
+  if (currentSchSub === 'personal') renderPersonalView();
+}
+
+async function loadProjects() {
+  const data = await apiFetch(`${API}?action=projects_list`).catch(()=>({success:false}));
+  if (data.success) {
+    schProjects = data.projects || [];
+  }
+  if (currentSchSub === 'projects') renderProjectsView();
+  updateProjectDropdown();
+}
+
+// ── 全体ビュー（ガントチャート風）─────────────────────────────
+function renderOverview() {
+  const container = document.getElementById('sch-overview');
+  const dates = getWeekDates();
+  const today = formatDate(new Date());
+
+  // スタッフリスト（field + office + master）
+  const staffList = Object.entries(USERS).filter(([id]) => {
+    const cfg = (typeof APP_CONFIG !== 'undefined') ? APP_CONFIG.users[id] : null;
+    return cfg && cfg.role !== 'china';
+  });
+
+  let html = '<table><thead><tr><th>スタッフ</th>';
+  dates.forEach(d => {
+    const cls = formatDate(d) === today ? ' class="today"' : '';
+    html += `<th${cls}>${formatDateShort(d)}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  staffList.forEach(([userId, userName]) => {
+    html += `<tr><td class="staff-name">${escHtml(userName)}</td>`;
+    dates.forEach(d => {
+      const dateStr = formatDate(d);
+      const entries = schEntries.filter(e => e.date === dateStr && e.staff && e.staff.includes(userId));
+      const cls = dateStr === today ? ' style="background:rgba(99,102,241,.06)"' : '';
+      html += `<td${cls}>`;
+      entries.forEach(e => {
+        const color = e.project_color || '#6366f1';
+        const label = e.project_name || e.title;
+        html += `<span class="sch-cell-entry" style="background:${color}" onclick="openScheduleDetail(${e.id})" title="${escHtml(e.title)}${e.start_time?' '+e.start_time:''}">${escHtml(label)}</span>`;
+      });
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+// ── タイムラインビュー（24時間横軸チャート）────────────────────
+let tlCurrentDate = new Date();
+
+const TL_START_HOUR = 6;  // 表示開始: 6時
+const TL_END_HOUR = 22;   // 表示終了: 22時
+const TL_HOURS = TL_END_HOUR - TL_START_HOUR; // 16時間分
+
+function tlDateMove(dir) {
+  tlCurrentDate.setDate(tlCurrentDate.getDate() + dir);
+  renderTimeline();
+}
+
+function tlGoToday() {
+  tlCurrentDate = new Date();
+  renderTimeline();
+}
+
+async function renderTimeline() {
+  const dateStr = formatDate(tlCurrentDate);
+  const days = ['日','月','火','水','木','金','土'];
+  const dayName = days[tlCurrentDate.getDay()];
+  const isToday = dateStr === formatDate(new Date());
+  document.getElementById('tl-date-label').textContent =
+    `${tlCurrentDate.getFullYear()}年${tlCurrentDate.getMonth()+1}月${tlCurrentDate.getDate()}日（${dayName}）`;
+
+  // データ取得（当日分）
+  const data = await apiFetch(`${API}?action=schedule_list&from=${dateStr}&to=${dateStr}`).catch(()=>({success:false}));
+  const entries = data.success ? (data.entries || []) : [];
+
+  const staffList = Object.entries(USERS).filter(([id]) => {
+    const cfg = (typeof APP_CONFIG !== 'undefined') ? APP_CONFIG.users[id] : null;
+    return cfg && cfg.role !== 'china';
+  });
+
+  const container = document.getElementById('tl-chart');
+
+  // 時間ラベル行
+  let html = '<div class="tl-chart-inner"><div class="tl-hour-labels">';
+  for (let h = TL_START_HOUR; h < TL_END_HOUR; h++) {
+    html += `<span class="tl-hour-lbl">${h}:00</span>`;
+  }
+  html += '</div>';
+
+  // 各スタッフの行
+  staffList.forEach(([userId, userName]) => {
+    const userEntries = entries.filter(e => e.staff && e.staff.includes(userId));
+
+    html += `<div class="tl-row">`;
+    html += `<div class="tl-row-name">${escHtml(userName)}</div>`;
+    html += `<div class="tl-row-bar">`;
+
+    // 時間グリッド線
+    html += '<div class="tl-hour-grid">';
+    for (let h = TL_START_HOUR; h < TL_END_HOUR; h++) {
+      html += '<div class="tl-hour-line"></div>';
+    }
+    html += '</div>';
+
+    // エントリバー
+    userEntries.forEach(e => {
+      if (!e.start_time) return; // 時間なしはスキップ
+      const startParts = e.start_time.split(':').map(Number);
+      const endParts = (e.end_time || e.start_time).split(':').map(Number);
+      const startMin = startParts[0] * 60 + (startParts[1]||0);
+      const endMin = endParts[0] * 60 + (endParts[1]||0);
+      const totalMin = TL_HOURS * 60;
+      const offsetMin = startMin - TL_START_HOUR * 60;
+      const durationMin = endMin - startMin;
+
+      // 表示範囲外はクリップ
+      const leftPct = Math.max(0, (offsetMin / totalMin) * 100);
+      const widthPct = Math.min(100 - leftPct, (durationMin / totalMin) * 100);
+      if (widthPct <= 0) return;
+
+      const color = e.project_color || '#6366f1';
+      const label = e.project_name || e.title;
+      html += `<div class="tl-entry-bar" style="left:${leftPct}%;width:${widthPct}%;background:${color}" onclick="openScheduleDetail(${e.id})" title="${escHtml(e.title)} ${e.start_time}〜${e.end_time||''}">${escHtml(label)}</div>`;
+    });
+
+    // 現在時刻の赤線（今日の場合のみ）
+    if (isToday) {
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      const nowOffset = nowMin - TL_START_HOUR * 60;
+      if (nowOffset >= 0 && nowOffset <= TL_HOURS * 60) {
+        const nowPct = (nowOffset / (TL_HOURS * 60)) * 100;
+        html += `<div class="tl-now-line" style="left:${nowPct}%"><div class="tl-now-dot"></div></div>`;
+      }
+    }
+
+    html += '</div></div>'; // tl-row-bar, tl-row
+  });
+
+  html += '</div>'; // tl-chart-inner
+  container.innerHTML = html;
+}
+
+// ── 現場ビュー ──────────────────────────────────────────────
+function renderProjectsView() {
+  const container = document.getElementById('sch-projects');
+  if (schProjects.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">🏗</div><p>現場が登録されていません</p></div>';
+    return;
+  }
+  container.innerHTML = schProjects.map(p => {
+    const statusLabel = p.status === 'active' ? '進行中' : (p.status === 'completed' ? '完了' : 'キャンセル');
+    const statusClass = p.status === 'active' ? 'active' : 'completed';
+    const period = (p.start_date && p.end_date) ? `${p.start_date} 〜 ${p.end_date}` : (p.start_date || '未定');
+    return `<div class="sch-project-card" style="border-left-color:${p.color||'var(--primary)'}" onclick="openProjectDetail(${p.id})">
+      <div class="sch-project-top">
+        <span class="sch-project-name">${escHtml(p.name)}</span>
+        <span class="sch-project-status ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="sch-project-meta">
+        ${p.location ? '📍 '+escHtml(p.location)+' · ' : ''}${period}
+        ${p.client_name ? ' · '+escHtml(p.client_name) : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openProjectDetail(id) {
+  // 現場の詳細：紐づくスケジュールを表示
+  const data = await apiFetch(`${API}?action=schedule_by_project&project_id=${id}`).catch(()=>({success:false}));
+  const proj = schProjects.find(p => p.id == id);
+  if (!proj) return;
+
+  const entries = data.success ? (data.entries || []) : [];
+  const container = document.getElementById('sch-projects');
+
+  let html = `<div style="margin-bottom:12px">
+    <button class="btn-secondary" onclick="renderProjectsView()" style="padding:8px 14px;font-size:13px">← 現場一覧に戻る</button>
+  </div>
+  <div class="sch-project-card" style="border-left-color:${proj.color||'var(--primary)'}; cursor:default">
+    <div class="sch-project-top">
+      <span class="sch-project-name">${escHtml(proj.name)}</span>
+      <span style="display:flex;gap:6px">
+        <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="openSiteNotes(${proj.id})">💬 申し送り</button>
+        <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="showProjectModal(${proj.id})">✏ 編集</button>
+      </span>
+    </div>
+    <div class="sch-project-meta">
+      ${proj.location ? '📍 '+escHtml(proj.location) : ''}
+      ${proj.client_name ? ' · '+escHtml(proj.client_name) : ''}
+      ${proj.start_date ? ' · '+proj.start_date+'〜'+(proj.end_date||'') : ''}
+    </div>
+    ${proj.notes ? '<div style="margin-top:8px;font-size:13px;color:var(--muted)">'+escHtml(proj.notes)+'</div>' : ''}
+  </div>
+  <h4 style="color:var(--muted);font-size:13px;margin:16px 0 8px">この現場のスケジュール（${entries.length}件）</h4>`;
+
+  if (entries.length === 0) {
+    html += '<p style="color:var(--muted);font-size:13px;padding:12px 0">スケジュールがありません</p>';
+  } else {
+    entries.forEach(e => {
+      const staffNames = (e.staff||[]).map(uid => USERS[uid]||uid).join(', ');
+      html += `<div class="sch-day-block" onclick="openScheduleDetail(${e.id})" style="cursor:pointer">
+        <div class="sch-day-header">${e.date} ${e.start_time?e.start_time+'〜'+(e.end_time||''):''}</div>
+        <div style="font-size:13px">${escHtml(e.title)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">👥 ${staffNames||'未割当'}</div>
+      </div>`;
+    });
+  }
+  container.innerHTML = html;
+}
+
+// ── 個人ビュー ──────────────────────────────────────────────
+function buildUserSelect() {
+  const sel = document.getElementById('sch-user-select');
+  sel.innerHTML = '';
+  Object.entries(USERS).forEach(([id, name]) => {
+    const cfg = (typeof APP_CONFIG !== 'undefined') ? APP_CONFIG.users[id] : null;
+    if (cfg && cfg.role !== 'china') {
+      sel.innerHTML += `<option value="${id}">${name}</option>`;
+    }
+  });
+}
+
+async function loadPersonalSchedule() {
+  const userId = document.getElementById('sch-user-select').value;
+  if (!userId) return;
+  const dates = getWeekDates();
+  const from = formatDate(dates[0]);
+  const to = formatDate(dates[6]);
+  const data = await apiFetch(`${API}?action=schedule_by_user&user_id=${userId}&from=${from}&to=${to}`).catch(()=>({success:false}));
+  const entries = data.success ? (data.entries || []) : [];
+  renderPersonalViewData(entries);
+}
+
+function renderPersonalView() {
+  const userId = document.getElementById('sch-user-select').value;
+  if (!userId) return;
+  const entries = schEntries.filter(e => e.staff && e.staff.includes(userId));
+  renderPersonalViewData(entries);
+}
+
+function renderPersonalViewData(entries) {
+  const container = document.getElementById('sch-personal-body');
+  const dates = getWeekDates();
+  const today = formatDate(new Date());
+
+  let html = '';
+  dates.forEach(d => {
+    const dateStr = formatDate(d);
+    const dayEntries = entries.filter(e => e.date === dateStr);
+    const isToday = dateStr === today;
+    html += `<div class="sch-day-block"${isToday?' style="border-color:var(--green)"':''}>
+      <div class="sch-day-header ${isToday?'is-today':''}">${isToday?'⬤ ':''} ${formatDateShort(d)}</div>`;
+    if (dayEntries.length === 0) {
+      html += '<div style="font-size:12px;color:var(--muted);padding:4px 0">予定なし</div>';
+    } else {
+      dayEntries.forEach(e => {
+        const color = e.project_color || '#6366f1';
+        const time = e.start_time ? `${e.start_time}${e.end_time?'〜'+e.end_time:''}` : '';
+        html += `<div class="sch-entry-row" onclick="openScheduleDetail(${e.id})" style="cursor:pointer">
+          <span class="sch-entry-time">${time||'終日'}</span>
+          <span class="sch-entry-badge" style="background:${color}">${escHtml(e.project_name||'個人')}</span>
+          <span class="sch-entry-title">${escHtml(e.title)}</span>
+        </div>`;
+      });
+    }
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
+// ── スケジュール詳細（編集） ─────────────────────────────────
+async function openScheduleDetail(entryId) {
+  const dates = getWeekDates();
+  const from = formatDate(dates[0]);
+  const to = formatDate(dates[6]);
+  // schEntriesから探す、なければAPIから取得
+  let entry = schEntries.find(e => e.id == entryId);
+  if (!entry) {
+    const data = await apiFetch(`${API}?action=schedule_list&from=2000-01-01&to=2099-12-31`).catch(()=>({success:false}));
+    if (data.success) entry = (data.entries||[]).find(e => e.id == entryId);
+  }
+  if (!entry) { showToast('スケジュールが見つかりません'); return; }
+  showScheduleModal(entry);
+}
+
+// ── スケジュール登録/編集モーダル ────────────────────────────
+function showScheduleModal(entry) {
+  const isEdit = entry && entry.id;
+  document.getElementById('sch-modal-title').textContent = isEdit ? 'スケジュール編集' : 'スケジュール登録';
+  document.getElementById('sch-edit-id').value = isEdit ? entry.id : '';
+  document.getElementById('sch-inp-title').value = isEdit ? (entry.title||'') : '';
+  document.getElementById('sch-inp-date').value = isEdit ? (entry.date||'') : formatDate(new Date());
+  document.getElementById('sch-inp-start').value = isEdit ? (entry.start_time||'') : '';
+  document.getElementById('sch-inp-end').value = isEdit ? (entry.end_time||'') : '';
+  document.getElementById('sch-inp-notes').value = isEdit ? (entry.notes||'') : '';
+
+  updateProjectDropdown();
+  document.getElementById('sch-inp-project').value = isEdit ? (entry.project_id||'') : '';
+
+  // スタッフチェックボックス
+  const grid = document.getElementById('sch-staff-grid');
+  const checkedStaff = isEdit ? (entry.staff||[]) : [];
+  grid.innerHTML = '';
+  Object.entries(USERS).forEach(([id, name]) => {
+    const cfg = (typeof APP_CONFIG !== 'undefined') ? APP_CONFIG.users[id] : null;
+    if (cfg && cfg.role !== 'china') {
+      const checked = checkedStaff.includes(id);
+      grid.innerHTML += `<label class="staff-check ${checked?'checked':''}" onclick="this.classList.toggle('checked')">
+        <input type="checkbox" value="${id}" ${checked?'checked':''}>
+        ${name}
+      </label>`;
+    }
+  });
+
+  document.getElementById('schedule-modal').classList.add('show');
+}
+
+function updateProjectDropdown() {
+  const sel = document.getElementById('sch-inp-project');
+  const currentVal = sel.value;
+  sel.innerHTML = '<option value="">-- なし（個人予定）--</option>';
+  schProjects.filter(p=>p.status==='active').forEach(p => {
+    sel.innerHTML += `<option value="${p.id}">${escHtml(p.name)}</option>`;
+  });
+  sel.value = currentVal;
+}
+
+async function saveScheduleEntry() {
+  const title = document.getElementById('sch-inp-title').value.trim();
+  const date = document.getElementById('sch-inp-date').value;
+  if (!title || !date) { showToast('タイトルと日付は必須です'); return; }
+
+  const editId = document.getElementById('sch-edit-id').value;
+  const staff = [...document.querySelectorAll('#sch-staff-grid input:checked')].map(cb => cb.value);
+
+  const body = {
+    title,
+    date,
+    start_time: document.getElementById('sch-inp-start').value,
+    end_time: document.getElementById('sch-inp-end').value,
+    project_id: document.getElementById('sch-inp-project').value || null,
+    notes: document.getElementById('sch-inp-notes').value.trim(),
+    staff,
+    created_by: 'onodera',
+  };
+
+  let action = 'schedule_create';
+  if (editId) {
+    action = 'schedule_update';
+    body.id = parseInt(editId);
+  }
+
+  const data = await apiFetch(`${API}?action=${action}`, {method:'POST', body:JSON.stringify(body)});
+  if (data.success) {
+    hideModal('schedule-modal');
+    showToast(editId ? 'スケジュールを更新しました' : 'スケジュールを登録しました');
+    loadScheduleData();
+    loadProjects();
+  } else {
+    showToast(data.message || 'エラーが発生しました');
+  }
+}
+
+// ── 現場登録/編集モーダル ───────────────────────────────────
+function showProjectModal(editId) {
+  const proj = editId ? schProjects.find(p => p.id == editId) : null;
+  const isEdit = !!proj;
+  document.getElementById('proj-modal-title').textContent = isEdit ? '現場編集' : '現場登録';
+  document.getElementById('proj-edit-id').value = isEdit ? proj.id : '';
+  document.getElementById('proj-inp-name').value = isEdit ? (proj.name||'') : '';
+  document.getElementById('proj-inp-location').value = isEdit ? (proj.location||'') : '';
+  document.getElementById('proj-inp-client').value = isEdit ? (proj.client_name||'') : '';
+  document.getElementById('proj-inp-start').value = isEdit ? (proj.start_date||'') : '';
+  document.getElementById('proj-inp-end').value = isEdit ? (proj.end_date||'') : '';
+  document.getElementById('proj-inp-notes').value = isEdit ? (proj.notes||'') : '';
+
+  // カラーピッカー
+  const selected = isEdit ? (proj.color||PROJECT_COLORS[0]) : PROJECT_COLORS[0];
+  const colorContainer = document.getElementById('proj-color-options');
+  colorContainer.innerHTML = PROJECT_COLORS.map(c =>
+    `<div class="color-opt ${c===selected?'selected':''}" style="background:${c}" onclick="selectProjectColor(this,'${c}')"></div>`
+  ).join('');
+
+  document.getElementById('project-modal').classList.add('show');
+}
+
+let selectedProjectColor = PROJECT_COLORS[0];
+function selectProjectColor(el, color) {
+  selectedProjectColor = color;
+  document.querySelectorAll('.color-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+async function saveProject() {
+  const name = document.getElementById('proj-inp-name').value.trim();
+  if (!name) { showToast('現場名は必須です'); return; }
+
+  const editId = document.getElementById('proj-edit-id').value;
+  const body = {
+    name,
+    location: document.getElementById('proj-inp-location').value.trim(),
+    client_name: document.getElementById('proj-inp-client').value.trim(),
+    start_date: document.getElementById('proj-inp-start').value,
+    end_date: document.getElementById('proj-inp-end').value,
+    notes: document.getElementById('proj-inp-notes').value.trim(),
+    color: selectedProjectColor,
+  };
+
+  let action = 'project_create';
+  if (editId) {
+    action = 'project_update';
+    body.id = parseInt(editId);
+    // 既存のステータスを維持
+    const existing = schProjects.find(p => p.id == editId);
+    body.status = existing ? existing.status : 'active';
+  }
+
+  const data = await apiFetch(`${API}?action=${action}`, {method:'POST', body:JSON.stringify(body)});
+  if (data.success) {
+    hideModal('project-modal');
+    showToast(editId ? '現場を更新しました' : '現場を登録しました');
+    loadProjects();
+  } else {
+    showToast(data.message || 'エラーが発生しました');
+  }
+}
+
+// モーダル外クリックで閉じる
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('show');
+  });
+});
+
+// ── 初期化 ───────────────────────────────────────────────────
+initDemoData();
+setLang(lang);
+loadOrders();
+setInterval(loadOrders, 30000);
+registerSW();
+applyFeatureVisibility();
+</script>
+</body>
+</html>
