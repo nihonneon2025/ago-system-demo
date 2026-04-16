@@ -1638,7 +1638,7 @@ let pinValue = '';
 function resetPin() {
   pinValue = '';
   document.getElementById('pin-error').textContent = '';
-  for (let i=0;i<8;i++) document.getElementById('pd-'+i).classList.remove('filled');
+  for (let i=0;i<6;i++) document.getElementById('pd-'+i).classList.remove('filled');
 }
 
 function pinKey(k) {
@@ -1649,7 +1649,7 @@ function pinKey(k) {
     }
     return;
   }
-  if (pinValue.length >= 8) return;
+  if (pinValue.length >= 6) return;
   pinValue += k;
   document.getElementById('pd-'+(pinValue.length-1)).classList.add('filled');
   if (pinValue.length === MASTER_PIN.length) {
