@@ -1,0 +1,27 @@
+# 機密情報
+config.php
+config.js
+*.env
+.env.*
+api.php
+subscribe.php
+
+# Claude Code 全般（permission履歴・セッションログ・ローカル設定すべて機密扱い）
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# 一時ファイル
+*.log
+*.tmp
+*.bak
+*~
+
+# 作業メモ
+セッティング手順書.txt
