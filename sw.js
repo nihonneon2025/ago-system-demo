@@ -1,0 +1,93 @@
+/**
+ * AGO SYSTEM MANAGER - サービスワーカー
+ * オフライン対応とキャッシュ管理
+ */
+
+const CACHE_NAME = 'ago-system-v1';
+const STATIC_ASSETS = [
+  'index.html',
+  'config.js',
+  'manifest.json',
+];
+
+// インストール時に静的ファイルをキャッシュ
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+  );
+  self.skipWaiting();
+});
+
+// 古いキャッシュの削除
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+// リクエスト処理
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // APIリクエスト → ネットワークファースト
+  if (url.pathname.endsWith('api.php') || url.pathname.endsWith('subscribe.php')) {
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        new Response(JSON.stringify({ success: false, message: 'オフラインです' }), {
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+    return;
+  }
+
+  // 静的ファイル → キャッシュファースト、なければネットワーク
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
+        if (response.ok && event.request.method === 'GET') {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      });
+    })
+  );
+});
+
+// プッシュ通知の受信
+self.addEventListener('push', (event) => {
+  let data = { title: 'AGO SYSTEM MANAGER', body: '新しい通知があります' };
+  try {
+    data = event.data.json();
+  } catch (e) {
+    data.body = event.data ? event.data.text() : data.body;
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'AGO SYSTEM MANAGER', {
+      body: data.body || '',
+      icon: 'icon-192.png',
+      badge: 'icon-192.png',
+      data: data.url || '/',
+    })
+  );
+});
+
+// 通知クリック時にアプリを開く
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes('index.html') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow(event.notification.data || '/');
+    })
+  );
+});
