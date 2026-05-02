@@ -12,7 +12,7 @@
 <meta name="theme-color" content="#0f172a">
 <title>AGO SYSTEM MANAGER | 株式会社AGOグループ</title>
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png">
+<!-- apple-touch-icon: Phase 6 で AGO 公式ロゴから生成予定 -->
 <style>
 :root{
   --bg:#0f172a;--surface:#1e293b;--card:#263147;--border:#334155;
@@ -484,8 +484,8 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px">👥 スタッフ名の変更方法</div>
     <div style="font-size:12px;color:var(--text);line-height:1.8;background:var(--surface);padding:10px;border-radius:8px">
       1. <code>config.js</code> をテキストエディタで開く<br>
-      2. <code>users:</code> の中の <code>displayName</code> を実際の名前に変更<br>
-      &nbsp;&nbsp;&nbsp;例: <code>"displayName": "スタッフ01"</code> → <code>"displayName": "田中太郎"</code><br>
+      2. <code>users:</code> の中の <code>name</code> を実際の名前に変更<br>
+      &nbsp;&nbsp;&nbsp;例: <code>name: 'スタッフ01'</code> → <code>name: '田中太郎'</code><br>
       3. 保存してブラウザを再読込（F5）<br>
       4. 変更後は全スタッフに再ログインを案内
     </div>
@@ -1292,9 +1292,9 @@ const STATUSES = {
   }
 };
 
-const USERS = {
-  kanno: '菅野', staff01: 'スタッフ01', staff02: 'スタッフ02', staff03: 'スタッフ03', staff04: 'スタッフ04', staff05: 'スタッフ05', staff06: 'スタッフ06', staff07: 'スタッフ07', staff08: 'スタッフ08', staff09: 'スタッフ09', staff10: 'スタッフ10', office01: '事務01', office02: '事務02', office03: '事務03', china01: '中国01', china02: '中国02'
-};
+const USERS = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users)
+  ? Object.fromEntries(Object.entries(APP_CONFIG.users).map(([id, u]) => [id, u.name]))
+  : { kanno: '菅野', staff01: 'スタッフ01', staff02: 'スタッフ02', staff03: 'スタッフ03', staff04: 'スタッフ04', staff05: 'スタッフ05', staff06: 'スタッフ06', staff07: 'スタッフ07', staff08: 'スタッフ08', staff09: 'スタッフ09', staff10: 'スタッフ10', office01: '事務01', office02: '事務02', office03: '事務03', china01: '中国01', china02: '中国02' };
 
 // ── 状態変数 ─────────────────────────────────────────────────
 let lang         = localStorage.getItem('lang') || 'ja';
@@ -1308,7 +1308,7 @@ let logoTapCount = 0;
 let logoTapTimer = null;
 let pinBuffer    = '';
 let selectedCancelReason = 'cancel_customer';
-const MASTER_PIN = 'kanno0';
+const MASTER_PIN = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.masterPin) ? APP_CONFIG.masterPin : 'kanno0';
 
 // ── 翻訳テキスト ───────────────────────────────────────────────
 const T = {
@@ -1451,6 +1451,14 @@ function updateModalLabels() {
 
 // ── タブ切り替え ─────────────────────────────────────────────
 function switchTab(tab) {
+  // 権限チェック
+  const uid = localStorage.getItem('ago_current_user');
+  const cfg = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users[uid] : null;
+  const role = cfg ? cfg.role : 'field';
+  if (tab === 'accounting' && role !== 'master' && role !== 'office') {
+    showToast('この機能の権限がありません');
+    return;
+  }
   currentTab = tab;
   ['orders','projects','customers','monthly','schedule','attendance','instructions','accounting'].forEach(name => {
     document.getElementById('tab-'+name).classList.toggle('active', name===tab);
@@ -2536,7 +2544,16 @@ function uploadProjectPhotos(projectId, inputEl) {
         all.push({id: lsNextId(all), data: dataUrl, note: file.name, created_at: lsNow()});
         remaining--;
         if (remaining === 0) {
-          lsSave(LS_PROJECT_PHOTOS + projectId, all);
+          try {
+            lsSave(LS_PROJECT_PHOTOS + projectId, all);
+          } catch(e) {
+            if (e.name === 'QuotaExceededError' || e.code === 22) {
+              showToast('⚠️ 容量上限です。古い写真を整理してから再試行してください');
+            } else {
+              showToast('写真の保存に失敗しました: ' + e.message);
+            }
+            return;
+          }
           showToast('✅ ' + files.length + '枚追加しました');
           renderPipelineDetail(projectId);
         }
@@ -2811,8 +2828,12 @@ function saveMasterFeatures() {
 
 // タブの表示/非表示を現在のユーザー権限に基づいて切り替え
 function applyFeatureVisibility() {
-  // 現在のログインユーザーを特定（簡易: att-user-selectの値 or 'kanno'）
-  const currentUser = localStorage.getItem('ago_current_user') || 'kanno';
+  const uid = localStorage.getItem('ago_current_user');
+  if (!uid) {
+    // 未ログイン：ログインモーダルを表示
+    showLoginModal();
+    return;
+  }
 
   const tabMap = {
     schedule: 'tab-schedule',
@@ -2823,10 +2844,95 @@ function applyFeatureVisibility() {
   Object.entries(tabMap).forEach(([feature, tabId]) => {
     const el = document.getElementById(tabId);
     if (el) {
-      const allowed = getUserEffectivePermission(currentUser, feature);
+      const allowed = getUserEffectivePermission(uid, feature);
       el.style.display = allowed ? '' : 'none';
     }
   });
+}
+
+// ── ログインモーダル ───────────────────────────────────────────
+let loginSelectedUser = null;
+
+function showLoginModal() {
+  const modal = document.getElementById('login-modal');
+  if (!modal) return;
+  loginSelectedUser = null;
+  // ユーザーリスト生成
+  const listEl = document.getElementById('login-user-list');
+  listEl.innerHTML = '';
+  const users = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users : {};
+  Object.entries(users).forEach(([id, u]) => {
+    const btn = document.createElement('button');
+    btn.className = 'btn-secondary';
+    btn.style.cssText = 'width:100%;padding:10px;font-size:15px;text-align:left';
+    const roleLabel = { master: '代表', office: '事務', field: 'スタッフ', china: '中国側' };
+    btn.innerHTML = u.name + ' <span style="font-size:12px;color:var(--muted);margin-left:8px">' + (roleLabel[u.role] || u.role) + '</span>';
+    btn.onclick = function() { onLoginUserSelect(id, u); };
+    listEl.appendChild(btn);
+  });
+  // PIN入力エリアをリセット
+  document.getElementById('login-pin-area').style.display = 'none';
+  document.getElementById('login-pin-display').textContent = '------';
+  document.getElementById('login-pin-buffer').value = '';
+  modal.classList.add('show');
+}
+
+function onLoginUserSelect(userId, userObj) {
+  loginSelectedUser = userId;
+  const role = userObj.role;
+  if (role === 'master' || role === 'office') {
+    // PIN必須
+    document.getElementById('login-pin-label').textContent = userObj.name + ' のPINを入力してください';
+    document.getElementById('login-pin-display').textContent = '------';
+    document.getElementById('login-pin-buffer').value = '';
+    document.getElementById('login-pin-area').style.display = 'block';
+  } else {
+    // fieldとchinaはPINなしで即ログイン
+    completeLogin(userId);
+  }
+}
+
+function loginPinKey(k) {
+  const bufInput = document.getElementById('login-pin-buffer');
+  let buf = bufInput.value;
+  if (k === 'clear') {
+    buf = buf.slice(0, -1);
+  } else {
+    if (buf.length >= 6) return;
+    buf += k;
+  }
+  bufInput.value = buf;
+  // ディスプレイ更新（入力済み文字数分を●で表示）
+  document.getElementById('login-pin-display').textContent = '●'.repeat(buf.length) + '-'.repeat(Math.max(0, MASTER_PIN.length - buf.length));
+  // masterとofficeはmasterPINで認証（全員共通PIN）
+  if (buf.length === MASTER_PIN.length) {
+    setTimeout(() => {
+      if (buf === MASTER_PIN) {
+        completeLogin(loginSelectedUser);
+      } else {
+        document.getElementById('login-pin-display').textContent = '❌ PIN違い';
+        setTimeout(() => {
+          bufInput.value = '';
+          document.getElementById('login-pin-display').textContent = '------';
+        }, 1200);
+      }
+    }, 100);
+  }
+}
+
+function completeLogin(userId) {
+  localStorage.setItem('ago_current_user', userId);
+  const modal = document.getElementById('login-modal');
+  if (modal) modal.classList.remove('show');
+  applyFeatureVisibility();
+  const users = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users : {};
+  const name = (users[userId] && users[userId].name) ? users[userId].name : userId;
+  showToast('ようこそ、' + name + ' さん');
+}
+
+function logoutUser() {
+  localStorage.removeItem('ago_current_user');
+  showLoginModal();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3032,7 +3138,7 @@ function saveInvoice() {
     status: document.getElementById('inv-inp-status').value,
     notes: document.getElementById('inv-inp-notes').value.trim(),
     items,
-    created_by: 'onodera',
+    created_by: localStorage.getItem('ago_current_user') || 'kanno',
   };
 
   const lsKey = body.doc_type === 'purchase_order' ? LS_PO : LS_INVOICES;
@@ -3125,7 +3231,7 @@ function saveExpense() {
     project_id: document.getElementById('exp-inp-project').value || null,
     paid_by: document.getElementById('exp-inp-paidby').value,
     notes: document.getElementById('exp-inp-notes').value.trim(),
-    created_by: 'onodera',
+    created_by: localStorage.getItem('ago_current_user') || 'kanno',
   };
 
   const all = lsLoad(LS_EXPENSES);
@@ -4211,7 +4317,7 @@ function saveScheduleEntry() {
       project_name,
       notes: document.getElementById('sch-inp-notes').value.trim(),
       staff,
-      created_by: 'kanno',
+      created_by: localStorage.getItem('ago_current_user') || 'kanno',
       created_at: lsNow(),
     };
     all.push(entry);
@@ -4322,8 +4428,9 @@ function saveProject() {
   if (currentTab === 'projects') renderProjectsTab();
 }
 
-// モーダル外クリックで閉じる
+// モーダル外クリックで閉じる（ログインモーダルは除外）
 document.querySelectorAll('.modal-overlay').forEach(el => {
+  if (el.id === 'login-modal') return; // ログインモーダルは強制表示のため除外
   el.addEventListener('click', function(e) {
     if (e.target === this) this.classList.remove('show');
   });
@@ -4374,10 +4481,22 @@ function importAllData(inputEl) {
   reader.onload = function(e) {
     try {
       const data = JSON.parse(e.target.result);
-      if (!confirm('全データを読み込んだデータで上書きします。よろしいですか？\n（現在のデータは上書きされます）')) { inputEl.value = ''; return; }
+      // Step 1: まず現在データをバックアップDL
+      if (confirm('読み込み前に現在のデータをバックアップします。\nOKを押すとバックアップファイルがダウンロードされます。')) {
+        exportAllData(); // 既存のexportAllData()を呼ぶ
+      }
+      // Step 2: 上書き確認
+      if (!confirm('バックアップが完了しました。\n全データを読み込んだデータで上書きします。\n【この操作は取り消せません】\nよろしいですか？')) {
+        inputEl.value = '';
+        return;
+      }
       Object.entries(data).forEach(([key, val]) => {
         if (val !== null && val !== undefined) {
-          localStorage.setItem(key, JSON.stringify(val));
+          try {
+            localStorage.setItem(key, JSON.stringify(val));
+          } catch(quotaErr) {
+            showToast('容量超過のため一部データの読み込みに失敗しました: ' + key);
+          }
         }
       });
       showToast('✅ データを読み込みました。ページを再読込します...');
@@ -4397,5 +4516,37 @@ setInterval(loadOrders, 30000);
 registerSW();
 applyFeatureVisibility();
 </script>
+
+<!-- ログインモーダル -->
+<div id="login-modal" class="modal-overlay" style="z-index:9999;align-items:center">
+  <div class="modal" style="max-width:360px;width:100%">
+    <h3 style="margin-bottom:4px;text-align:center;font-size:18px">AGO SYSTEM MANAGER</h3>
+    <p style="text-align:center;color:var(--muted);font-size:13px;margin-bottom:16px">ログイン — ユーザーを選択してください</p>
+    <div id="login-user-list" style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto"></div>
+    <div id="login-pin-area" style="display:none;margin-top:16px">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px;text-align:center" id="login-pin-label">PINを入力してください</div>
+      <div id="login-pin-display" style="font-size:28px;font-weight:700;text-align:center;letter-spacing:8px;margin-bottom:12px;font-family:monospace">------</div>
+      <input type="hidden" id="login-pin-buffer" value="">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div class="pin-key" onclick="loginPinKey('1')">1</div>
+        <div class="pin-key" onclick="loginPinKey('2')">2</div>
+        <div class="pin-key" onclick="loginPinKey('3')">3</div>
+        <div class="pin-key" onclick="loginPinKey('4')">4</div>
+        <div class="pin-key" onclick="loginPinKey('5')">5</div>
+        <div class="pin-key" onclick="loginPinKey('6')">6</div>
+        <div class="pin-key" onclick="loginPinKey('7')">7</div>
+        <div class="pin-key" onclick="loginPinKey('8')">8</div>
+        <div class="pin-key" onclick="loginPinKey('9')">9</div>
+        <div class="pin-key" onclick="loginPinKey('a')">a</div>
+        <div class="pin-key" onclick="loginPinKey('0')">0</div>
+        <div class="pin-key clear" onclick="loginPinKey('clear')">⌫</div>
+        <div class="pin-key" onclick="loginPinKey('k')">k</div>
+        <div class="pin-key" onclick="loginPinKey('n')">n</div>
+        <div class="pin-key" onclick="loginPinKey('o')">o</div>
+      </div>
+      <button class="btn-secondary" style="width:100%;margin-top:12px;padding:8px" onclick="document.getElementById('login-pin-area').style.display='none';loginSelectedUser=null;">← ユーザー選択に戻る</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
