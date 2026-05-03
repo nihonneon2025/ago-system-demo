@@ -3702,9 +3702,13 @@ function _processLoginPin(buf) {
   }
 }
 
-// キーボード入力サポート（login-pin-area表示中のみ）
+// キーボード入力サポート（ログインモーダル表示中かつPINエリア表示中のみ）
 document.addEventListener('keydown', function(e) {
-  if (document.getElementById('login-pin-area') && document.getElementById('login-pin-area').style.display !== 'none') {
+  const loginModal = document.getElementById('login-modal');
+  const pinArea = document.getElementById('login-pin-area');
+  const modalVisible = loginModal && loginModal.classList.contains('show');
+  const pinVisible = pinArea && pinArea.style.display !== 'none';
+  if (modalVisible && pinVisible) {
     if (e.key >= '0' && e.key <= '9') { loginPinKey(e.key); e.preventDefault(); }
     else if (e.key === 'Backspace') { loginPinKey('clear'); e.preventDefault(); }
     else if (e.key === 'Enter') { loginPinKey('confirm'); e.preventDefault(); }
@@ -3716,6 +3720,8 @@ function completeLogin(userId) {
   sessionStorage.setItem('ago_authenticated', 'true');
   const modal = document.getElementById('login-modal');
   if (modal) modal.classList.remove('show');
+  const pinArea = document.getElementById('login-pin-area');
+  if (pinArea) pinArea.style.display = 'none';
   applyFeatureVisibility();
   const users = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users : {};
   const name = (users[userId] && users[userId].name) ? users[userId].name : userId;
