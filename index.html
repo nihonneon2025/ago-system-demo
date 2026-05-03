@@ -344,6 +344,8 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .acc-status.draft{background:rgba(148,163,184,.15);color:var(--muted)}
 .acc-status.sent{background:rgba(59,130,246,.2);color:var(--blue)}
 .acc-status.paid{background:rgba(16,185,129,.2);color:var(--green)}
+.acc-status.approved{background:rgba(16,185,129,.2);color:var(--green)}
+.acc-status.rejected{background:rgba(239,68,68,.2);color:var(--red)}
 .acc-subject{font-size:14px;font-weight:600;margin-bottom:4px}
 .acc-meta{font-size:12px;color:var(--muted)}
 .acc-amount{font-weight:700;color:var(--text)}
@@ -490,6 +492,26 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       4. 変更後は全スタッフに再ログインを案内
     </div>
   </div>
+  <!-- 協力会社管理（Phase 6-H） -->
+  <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px" id="master-contractor-section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:13px;font-weight:700;color:var(--muted)">🏢 協力会社・職人管理</div>
+      <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="openContractorModal(null)">+ 協力会社登録</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+      <button class="filter-btn active" id="ctr-filter-all" onclick="setContractorFilter('all','')">全員</button>
+      <button class="filter-btn" id="ctr-filter-active" onclick="setContractorFilter('active','')">有効</button>
+      <button class="filter-btn" id="ctr-filter-inactive" onclick="setContractorFilter('inactive','')">無効</button>
+      <span style="color:var(--border);margin:0 2px">|</span>
+      <button class="filter-btn active" id="ctr-cat-all" onclick="setContractorFilter('','all')">全工種</button>
+      <button class="filter-btn" id="ctr-cat-signage" onclick="setContractorFilter('','看板')">看板</button>
+      <button class="filter-btn" id="ctr-cat-interior" onclick="setContractorFilter('','内装')">内装</button>
+      <button class="filter-btn" id="ctr-cat-electric" onclick="setContractorFilter('','電気')">電気</button>
+      <button class="filter-btn" id="ctr-cat-paint" onclick="setContractorFilter('','塗装')">塗装</button>
+      <button class="filter-btn" id="ctr-cat-other" onclick="setContractorFilter('','その他')">その他</button>
+    </div>
+    <div id="master-contractor-list"></div>
+  </div>
 </div>
 
 <!-- Search Bar -->
@@ -553,6 +575,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 <div id="accounting-view" style="display:none">
   <div class="acc-sub-nav">
     <button class="acc-sub-btn active" id="acc-sub-summary" onclick="switchAccSub('summary')">📊 収支</button>
+    <button class="acc-sub-btn" id="acc-sub-estimates" onclick="switchAccSub('estimates')">📝 見積書</button>
     <button class="acc-sub-btn" id="acc-sub-invoices" onclick="switchAccSub('invoices')">📄 請求書</button>
     <button class="acc-sub-btn" id="acc-sub-po" onclick="switchAccSub('po')">📋 発注書</button>
     <button class="acc-sub-btn" id="acc-sub-expenses" onclick="switchAccSub('expenses')">💸 経費</button>
@@ -564,6 +587,22 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <input class="form-input" id="acc-summary-month" type="month" onchange="loadFinanceSummary()" style="max-width:160px">
     </div>
     <div class="acc-summary" id="acc-summary-cards"></div>
+  </div>
+
+  <!-- 見積書一覧 -->
+  <div id="acc-estimates-view" style="display:none">
+    <div style="padding:12px 16px 8px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:13px;color:var(--muted);font-weight:600">見積書一覧</span>
+      <button class="btn-secondary" id="est-new-btn" style="padding:6px 12px;font-size:12px" onclick="openEstimateModal(null)">＋ 新規見積書</button>
+    </div>
+    <div style="padding:0 16px 8px;display:flex;gap:6px;overflow-x:auto">
+      <button class="filter-btn active" id="est-filter-all" onclick="renderEstimates('all')">全て</button>
+      <button class="filter-btn" id="est-filter-draft" onclick="renderEstimates('draft')">下書き</button>
+      <button class="filter-btn" id="est-filter-sent" onclick="renderEstimates('sent')">送付済</button>
+      <button class="filter-btn" id="est-filter-approved" onclick="renderEstimates('approved')">承認済</button>
+      <button class="filter-btn" id="est-filter-rejected" onclick="renderEstimates('rejected')">却下</button>
+    </div>
+    <div class="acc-list" id="acc-estimates-list"></div>
   </div>
 
   <!-- 請求書一覧 -->
@@ -665,6 +704,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <button class="sch-sub-btn" id="sch-sub-timeline" onclick="switchSchSub('timeline')">⏱ タイムライン</button>
     <button class="sch-sub-btn" id="sch-sub-projects" onclick="switchSchSub('projects')">🏗 現場</button>
     <button class="sch-sub-btn" id="sch-sub-personal" onclick="switchSchSub('personal')">👤 個人</button>
+    <button class="sch-sub-btn" id="sch-sub-board" onclick="switchSchSub('board')">📋 ボード</button>
   </div>
 
   <!-- Toolbar: week navigation -->
@@ -700,6 +740,16 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <select class="sch-user-select" id="sch-user-select" onchange="loadPersonalSchedule()"></select>
     </div>
     <div class="sch-personal" id="sch-personal-body"></div>
+  </div>
+
+  <!-- ボードビュー (Phase 6-A) -->
+  <div id="sch-board" style="display:none;padding:16px 0">
+    <div id="board-header" style="display:flex;justify-content:space-between;align-items:center;padding:0 16px 12px">
+      <button onclick="boardPrevWeek()" class="btn-secondary">&#8592; 前週</button>
+      <div id="board-week-label" style="font-weight:700;font-size:15px"></div>
+      <button onclick="boardNextWeek()" class="btn-secondary">次週 &#8594;</button>
+    </div>
+    <div id="board-grid" style="overflow-x:auto;padding:0 16px"></div>
   </div>
 </div>
 
@@ -925,7 +975,97 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     </div>
     <div class="btn-row">
       <button class="btn-secondary" onclick="hideModal('invoice-modal')">キャンセル</button>
+      <button class="btn-secondary" style="color:var(--blue);border-color:var(--blue)" onclick="exportInvoicePDF()">📄 PDF出力</button>
       <button class="btn-primary" onclick="saveInvoice()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Estimate Modal -->
+<div class="modal-overlay" id="estimate-modal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-title" id="est-modal-title">見積書作成</div>
+    <input type="hidden" id="est-edit-id" value="">
+    <div class="form-group">
+      <label class="form-label">見積番号</label>
+      <input class="form-input" id="est-inp-no" type="text" readonly style="color:var(--muted)">
+    </div>
+    <div class="form-group">
+      <label class="form-label">件名 *</label>
+      <input class="form-input" id="est-inp-subject" type="text" placeholder="例: 新宿ビルLED看板工事 見積">
+    </div>
+    <div class="form-group">
+      <label class="form-label">顧客名</label>
+      <input class="form-input" id="est-inp-client" type="text" placeholder="例: 株式会社○○">
+    </div>
+    <div class="form-group">
+      <label class="form-label">案件</label>
+      <select class="form-select" id="est-inp-project"><option value="">-- なし --</option></select>
+    </div>
+    <div class="form-group" style="display:flex;gap:12px">
+      <div style="flex:1">
+        <label class="form-label">見積日</label>
+        <input class="form-input" id="est-inp-date" type="date">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">有効期限</label>
+        <input class="form-input" id="est-inp-valid" type="date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">ステータス</label>
+      <select class="form-select" id="est-inp-status">
+        <option value="draft">下書き</option>
+        <option value="sent">送付済</option>
+        <option value="approved">承認済</option>
+        <option value="rejected">却下</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">明細</label>
+      <div style="overflow-x:auto">
+        <table class="inv-items-table" id="est-items-table">
+          <thead>
+            <tr>
+              <th style="min-width:160px">品名</th>
+              <th style="min-width:60px;text-align:right">数量</th>
+              <th style="min-width:60px">単位</th>
+              <th style="min-width:100px;text-align:right">単価</th>
+              <th style="min-width:100px;text-align:right">金額</th>
+              <th style="width:36px"></th>
+            </tr>
+          </thead>
+          <tbody id="est-items-body"></tbody>
+        </table>
+      </div>
+      <button class="btn-secondary" style="padding:6px 12px;font-size:12px;margin-top:6px" onclick="addEstimateItem()">+ 明細追加</button>
+    </div>
+    <div class="form-group" style="display:flex;gap:12px">
+      <div style="flex:1">
+        <label class="form-label">小計</label>
+        <input class="form-input" id="est-inp-subtotal" type="number" value="0" readonly style="color:var(--muted)">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">消費税(10%)</label>
+        <input class="form-input" id="est-inp-tax" type="number" value="0" readonly style="color:var(--muted)">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">合計</label>
+        <input class="form-input" id="est-inp-total" type="number" value="0" readonly style="font-weight:700;color:var(--accent)">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">備考</label>
+      <textarea class="form-textarea" id="est-inp-notes"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="closeEstimateModal()">キャンセル</button>
+      <button id="est-delete-btn" class="btn-secondary" style="color:var(--red);border-color:var(--red);display:none" onclick="deleteEstimateFromModal()">削除</button>
+      <button class="btn-secondary" style="color:var(--blue);border-color:var(--blue)" onclick="exportEstimatePDF()">📄 PDF出力</button>
+      <button class="btn-primary" onclick="saveEstimate()">保存する</button>
+    </div>
+    <div id="est-convert-po-area" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <button class="btn-secondary" style="width:100%;color:var(--purple);border-color:var(--purple)" onclick="convertEstimateToPO(document.getElementById('est-edit-id').value)">📋 発注書に変換</button>
     </div>
   </div>
 </div>
@@ -1208,6 +1348,10 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
 <div class="toast" id="toast"></div>
 
+<!-- Phase 6 CDN: jsPDF / AutoTable / html2canvas -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="config.js"></script>
 <script>
 // ── テーマ切り替え ─────────────────────────────────────────────
@@ -1231,11 +1375,13 @@ const API = 'api.php';
 const LS_ORDERS       = 'ago_orders';
 const LS_INVOICES     = 'ago_invoices';
 const LS_PO           = 'ago_purchase_orders';
+const LS_ESTIMATES    = 'ago_estimates';
 const LS_EXPENSES     = 'ago_expenses';
 const LS_PROJECTS_PIPELINE = 'ago_projects';   // Phase 2 案件パイプライン
 const LS_PROJECT_PHOTOS    = 'ago_project_photos_';  // prefix + project_id
 const LS_PROJECT_REPORTS   = 'ago_project_logs';
 const LS_PROJECT_CHECKLISTS= 'ago_project_checklists';
+const LS_CONTRACTORS       = 'ago_contractors';      // Phase 6-H 協力会社管理
 
 // ── 中国発注ステータス定義 ────────────────────────────────────────
 const CHINA_STATUS_LABELS = {
@@ -1308,7 +1454,7 @@ let logoTapCount = 0;
 let logoTapTimer = null;
 let pinBuffer    = '';
 let selectedCancelReason = 'cancel_customer';
-const MASTER_PIN = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.masterPin) ? APP_CONFIG.masterPin : 'kanno0';
+const MASTER_PIN = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.masterPin) ? APP_CONFIG.masterPin : '';
 
 // ── 翻訳テキスト ───────────────────────────────────────────────
 const T = {
@@ -1353,6 +1499,79 @@ const T = {
     exportData:'データエクスポート',
     importData:'データインポート',
     staffGuide:'スタッフ設定ガイド',
+    boardTab:'ボード',
+    drawingsTab:'図面',
+    addDrawing:'図面追加',
+    noDrawings:'図面がありません',
+    estimates:'見積書',
+    newEstimate:'新規見積書',
+    estNo:'見積番号',
+    estSubject:'件名',
+    estDate:'見積日',
+    estValidUntil:'有効期限',
+    estStatus:'ステータス',
+    estItems:'明細',
+    estItemName:'品名',
+    estQty:'数量',
+    estUnit:'単位',
+    estUnitPrice:'単価',
+    estAmount:'金額',
+    estSubtotal:'小計',
+    estTax:'消費税(10%)',
+    estTotal:'合計',
+    estNotes:'備考',
+    estDraft:'下書き',
+    estSent:'送付済',
+    estApproved:'承認済',
+    estRejected:'却下',
+    convertToPO:'発注書に変換',
+    addEstItem:'+ 明細追加',
+    noEstimates:'見積書がありません',
+    saveEstimate:'見積書を保存',
+    chatTab:'チャット',
+    chatPlaceholder:'メッセージを入力... (@でメンション)',
+    chatSend:'送信',
+    chatNoMessages:'まだメッセージはありません',
+    chatReadBy:'既読',
+    chatMention:'メンション',
+    exportPDF:'PDF出力',
+    pdfGenerating:'PDF生成中...',
+    blackboard:'電子黒板',
+    bbKoushu:'工種',
+    bbKoujimei:'工事名',
+    bbShisekibasho:'施工箇所',
+    bbDankai:'施工段階',
+    bbDate:'撮影日',
+    bbWorker:'撮影者',
+    bbPosition:'黒板位置',
+    bbCompose:'合成して保存',
+    bbPosBottomLeft:'左下',
+    bbPosBottomRight:'右下',
+    bbPosTopLeft:'左上',
+    bbPosTopRight:'右上',
+    bbStageBeforeStart:'着手前',
+    bbStageDuring:'施工中',
+    bbStageComplete:'完成',
+    contractors:'協力会社',
+    contractor:'協力会社・職人',
+    addContractor:'+ 協力会社登録',
+    contractorName:'会社名/氏名',
+    contractorType:'種別',
+    contractorCompany:'会社',
+    contractorIndividual:'個人',
+    contractorCategory:'対応工種',
+    contractorContact:'電話番号',
+    contractorEmail:'メール',
+    contractorAddress:'住所',
+    contractorNote:'備考',
+    contractorRating:'評価',
+    contractorStatus:'ステータス',
+    contractorActive:'有効',
+    contractorInactive:'無効',
+    contractorAssign:'担当に設定',
+    contractorRemove:'担当から外す',
+    noContractors:'協力会社が登録されていません',
+    noPermission:'権限がありません',
   },
   zh: {
     title:'收发货管理',allLabel:'全部',activeLabel:'进行中',doneLabel:'已完成',
@@ -1395,6 +1614,79 @@ const T = {
     exportData:'数据导出',
     importData:'数据导入',
     staffGuide:'员工设置指南',
+    boardTab:'排班板',
+    drawingsTab:'图纸',
+    addDrawing:'添加图纸',
+    noDrawings:'没有图纸',
+    estimates:'报价单',
+    newEstimate:'新建报价单',
+    estNo:'报价编号',
+    estSubject:'主题',
+    estDate:'报价日期',
+    estValidUntil:'有效期限',
+    estStatus:'状态',
+    estItems:'明细',
+    estItemName:'品名',
+    estQty:'数量',
+    estUnit:'单位',
+    estUnitPrice:'单价',
+    estAmount:'金额',
+    estSubtotal:'小计',
+    estTax:'消费税(10%)',
+    estTotal:'合计',
+    estNotes:'备注',
+    estDraft:'草稿',
+    estSent:'已发送',
+    estApproved:'已批准',
+    estRejected:'已拒绝',
+    convertToPO:'转为发注书',
+    addEstItem:'+ 添加明细',
+    noEstimates:'暂无报价单',
+    saveEstimate:'保存报价单',
+    chatTab:'聊天',
+    chatPlaceholder:'输入消息... (@提及)',
+    chatSend:'发送',
+    chatNoMessages:'暂无消息',
+    chatReadBy:'已读',
+    chatMention:'提及',
+    exportPDF:'导出PDF',
+    pdfGenerating:'正在生成PDF...',
+    blackboard:'电子黑板',
+    bbKoushu:'工种',
+    bbKoujimei:'工程名',
+    bbShisekibasho:'施工位置',
+    bbDankai:'施工阶段',
+    bbDate:'拍摄日期',
+    bbWorker:'拍摄者',
+    bbPosition:'黑板位置',
+    bbCompose:'合成并保存',
+    bbPosBottomLeft:'左下',
+    bbPosBottomRight:'右下',
+    bbPosTopLeft:'左上',
+    bbPosTopRight:'右上',
+    bbStageBeforeStart:'开工前',
+    bbStageDuring:'施工中',
+    bbStageComplete:'完成',
+    contractors:'合作公司',
+    contractor:'合作公司/工人',
+    addContractor:'+ 注册合作公司',
+    contractorName:'公司名/姓名',
+    contractorType:'类型',
+    contractorCompany:'公司',
+    contractorIndividual:'个人',
+    contractorCategory:'业务类型',
+    contractorContact:'电话',
+    contractorEmail:'邮箱',
+    contractorAddress:'地址',
+    contractorNote:'备注',
+    contractorRating:'评价',
+    contractorStatus:'状态',
+    contractorActive:'有效',
+    contractorInactive:'无效',
+    contractorAssign:'设为负责人',
+    contractorRemove:'移除负责人',
+    noContractors:'尚无合作公司',
+    noPermission:'没有权限',
   }
 };
 
@@ -1864,7 +2156,7 @@ function createOrder() {
     status:       'received',
     created_at:   now,
     updated_at:   now,
-    _logs:        [{status:'received', updated_by:'kanno', created_at:now, note:''}],
+    _logs:        [{status:'received', updated_by: localStorage.getItem('ago_current_user') || 'unknown', created_at:now, note:''}],
   };
   all.push(order);
   saveOrdersLS(all);
@@ -1899,7 +2191,7 @@ function advanceStatus() {
   all[idx].status = newStatus;
   all[idx].updated_at = now;
   if (!all[idx]._logs) all[idx]._logs = [];
-  all[idx]._logs.push({status: newStatus, updated_by: localStorage.getItem('ago_current_user')||'kanno', created_at: now, note});
+  all[idx]._logs.push({status: newStatus, updated_by: localStorage.getItem('ago_current_user')||'unknown', created_at: now, note});
   saveOrdersLS(all);
   hideModal('advance-modal');
   showToast(t('updated'));
@@ -1930,7 +2222,7 @@ function execCancel() {
   all[idx].status = selectedCancelReason;
   all[idx].updated_at = now;
   if (!all[idx]._logs) all[idx]._logs = [];
-  all[idx]._logs.push({status: selectedCancelReason, updated_by: localStorage.getItem('ago_current_user')||'kanno', created_at: now, note});
+  all[idx]._logs.push({status: selectedCancelReason, updated_by: localStorage.getItem('ago_current_user')||'unknown', created_at: now, note});
   saveOrdersLS(all);
   hideModal('cancel-modal');
   showToast('キャンセルしました');
@@ -1947,7 +2239,7 @@ function addMemo() {
   const idx = all.findIndex(o => o.id === currentOrder.id);
   if (idx < 0) { showToast('注文が見つかりません'); return; }
   if (!all[idx]._logs) all[idx]._logs = [];
-  all[idx]._logs.push({status: 'memo', updated_by: localStorage.getItem('ago_current_user')||'kanno', created_at: now, note});
+  all[idx]._logs.push({status: 'memo', updated_by: localStorage.getItem('ago_current_user')||'unknown', created_at: now, note});
   all[idx].updated_at = now;
   saveOrdersLS(all);
   document.getElementById('memo-input').value = '';
@@ -1984,6 +2276,10 @@ function resetPin() {
 }
 
 function pinKey(k) {
+  if (!MASTER_PIN) {
+    showToast('設定ファイルが読み込まれていません。config.js を確認してください。');
+    return;
+  }
   if (k === 'clear') {
     if (pinValue.length > 0) {
       pinValue = pinValue.slice(0,-1);
@@ -2024,7 +2320,7 @@ function revertStatus() {
   all[idx].status = prevStatus;
   all[idx].updated_at = now;
   if (!all[idx]._logs) all[idx]._logs = [];
-  all[idx]._logs.push({status: prevStatus, updated_by: 'kanno', created_at: now, note: '[マスター] ステータスを戻しました'});
+  all[idx]._logs.push({status: prevStatus, updated_by: localStorage.getItem('ago_current_user') || 'unknown', created_at: now, note: '[マスター] ステータスを戻しました'});
   saveOrdersLS(all);
   showToast(t('reverted'));
   refreshCurrentOrder();
@@ -2205,6 +2501,9 @@ function renderPipelineDetail(id) {
     {key:'photos', label:'📷 写真'},
     {key:'reports', label:'📝 日報'},
     {key:'checklist', label:'✅ チェック'},
+    {key:'drawings', label:'📐 図面'},
+    {key:'chat', label:'💬 ' + t('chatTab')},
+    {key:'contractors', label:'🏢 ' + t('contractors')},
   ];
 
   let html = `
@@ -2290,26 +2589,17 @@ function renderPipelineDetail(id) {
     }
 
   } else if (currentPipelineTab === 'photos') {
-    const photos = lsLoad(LS_PROJECT_PHOTOS + id);
+    // Phase 6-F: IndexedDB版 — 写真はDOMセット後に renderPhotosTab() で非同期描画
     html += `<div style="display:flex;justify-content:space-between;margin-bottom:8px">
-      <span style="font-size:13px;color:var(--muted)">${photos.length}枚</span>
+      <span id="photo-count-${id}" style="font-size:13px;color:var(--muted)">読込中...</span>
       <label class="btn-secondary" style="padding:6px 12px;font-size:12px;cursor:pointer">
         📷 写真追加
         <input type="file" accept="image/*" multiple style="display:none" onchange="uploadProjectPhotos(${id}, this)">
       </label>
     </div>
-    <div class="photo-grid" id="photo-grid-${id}">`;
-    if (photos.length === 0) {
-      html += '<p style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:20px">写真はありません</p>';
-    } else {
-      photos.forEach((ph, idx) => {
-        html += `<div class="photo-thumb" onclick="openPhotoViewer('${LS_PROJECT_PHOTOS+id}',${idx})">
-          <img src="${ph.data}" loading="lazy" style="width:100%;height:100%;object-fit:cover">
-          <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(ph.note||ph.created_at||'')}</div>
-        </div>`;
-      });
-    }
-    html += '</div>';
+    <div class="photo-grid" id="photo-grid-${id}">
+      <p style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:20px">読込中...</p>
+    </div>`;
 
   } else if (currentPipelineTab === 'reports') {
     const reports = lsLoad(LS_PROJECT_REPORTS).filter(r => r.project_id == id);
@@ -2324,7 +2614,11 @@ function renderPipelineDetail(id) {
         const uname = USERS[r.user_id] || r.user_id || '不明';
         html += `<div class="report-item">
           <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px">
-            <span>${escHtml(uname)}</span><span>${(r.report_date||r.created_at||'').substring(0,10)}</span>
+            <span>${escHtml(uname)}</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span>${(r.report_date||r.created_at||'').substring(0,10)}</span>
+              <button class="btn-secondary" style="padding:3px 8px;font-size:11px;color:var(--blue);border-color:var(--blue)" onclick="exportReportPDF('${r.id}')">📄 PDF</button>
+            </div>
           </div>
           <div style="font-size:13px;white-space:pre-wrap">${escHtml(r.body)}</div>
         </div>`;
@@ -2336,6 +2630,7 @@ function renderPipelineDetail(id) {
     html += `<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
       <button class="btn-secondary" style="padding:6px 12px;font-size:12px" onclick="applyChecklistTemplate(${id},'signage')">📋 看板工事テンプレ</button>
       <button class="btn-secondary" style="padding:6px 12px;font-size:12px" onclick="applyChecklistTemplate(${id},'interior')">📋 内装工事テンプレ</button>
+      <button class="btn-secondary" style="padding:6px 12px;font-size:12px;color:var(--blue);border-color:var(--blue)" onclick="exportChecklistPDF(${id})">📄 チェックリストPDF</button>
     </div>
     <div id="checklist-container-${id}">`;
     if (checklists.length === 0) {
@@ -2354,9 +2649,52 @@ function renderPipelineDetail(id) {
       <input id="chk-new-label" class="modal-input" placeholder="新しいチェック項目..." style="flex:1">
       <button class="btn-primary" style="padding:8px 14px" onclick="addChecklistItem(${id})">追加</button>
     </div>`;
+
+  } else if (currentPipelineTab === 'drawings') {
+    html += `
+    <div class="detail-section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h4 style="color:var(--accent)">📐 図面</h4>
+        <label class="btn-secondary" style="cursor:pointer;font-size:13px;padding:6px 12px">
+          ＋ アップロード
+          <input type="file" accept="image/*,.pdf" multiple style="display:none" onchange="uploadDrawings(event, ${id})">
+        </label>
+      </div>
+      <div id="drawings-list-${id}" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px"></div>
+    </div>`;
+
+  } else if (currentPipelineTab === 'chat') {
+    html += renderChatView(id);
+
+  } else if (currentPipelineTab === 'contractors') {
+    html += renderContractorTab(id);
   }
 
   detailBody.innerHTML = html;
+
+  // Phase 6-F: 写真タブ — IndexedDB 非同期描画
+  if (currentPipelineTab === 'photos') {
+    renderPhotosTab(id);
+  }
+
+  // 図面一覧描画（drawings タブ時）
+  if (currentPipelineTab === 'drawings') {
+    renderDrawingsList(id);
+  }
+
+  // チャット初期化（chat タブ時）
+  if (currentPipelineTab === 'chat') {
+    markChatRead(id);
+    const chatArea = document.getElementById('chat-messages-' + id);
+    if (chatArea) { chatArea.scrollTop = chatArea.scrollHeight; }
+    const chatInput = document.getElementById('chat-input-' + id);
+    if (chatInput) {
+      chatInput.addEventListener('input', function() { showMentionDropdown(chatInput, id); });
+      chatInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(id); }
+      });
+    }
+  }
 
   // 申し送りユーザーセレクト
   const sel = document.getElementById('pipe-note-user');
@@ -2514,26 +2852,26 @@ function savePipelineProject() {
   pipelineProjects = lsLoad(LS_PROJECTS_PIPELINE);
 }
 
-// ── 写真アップロード（Phase 3-A）────────────────────────────
+// ── 写真アップロード（Phase 6-F: IndexedDB版）──────────────────
 function uploadProjectPhotos(projectId, inputEl) {
   const files = Array.from(inputEl.files);
   if (files.length === 0) return;
   let remaining = files.length;
-  const all = lsLoad(LS_PROJECT_PHOTOS + projectId);
+  let savedCount = 0;
 
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = function(e) {
       // Canvas で 500KB 以下に圧縮
-      const img = new Image();
-      img.onload = function() {
+      const imgEl = new Image();
+      imgEl.onload = function() {
         const canvas = document.createElement('canvas');
-        let w = img.width, h = img.height;
+        let w = imgEl.width, h = imgEl.height;
         // 最大800px
         if (w > 800) { h = h * 800 / w; w = 800; }
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
+        ctx.drawImage(imgEl, 0, 0, w, h);
         let quality = 0.85;
         let dataUrl = canvas.toDataURL('image/jpeg', quality);
         // 500KB 超えたらさらに圧縮
@@ -2541,24 +2879,23 @@ function uploadProjectPhotos(projectId, inputEl) {
           quality -= 0.1;
           dataUrl = canvas.toDataURL('image/jpeg', quality);
         }
-        all.push({id: lsNextId(all), data: dataUrl, note: file.name, created_at: lsNow()});
-        remaining--;
-        if (remaining === 0) {
-          try {
-            lsSave(LS_PROJECT_PHOTOS + projectId, all);
-          } catch(e) {
-            if (e.name === 'QuotaExceededError' || e.code === 22) {
-              showToast('⚠️ 容量上限です。古い写真を整理してから再試行してください');
-            } else {
-              showToast('写真の保存に失敗しました: ' + e.message);
-            }
-            return;
+        const photoData = {data: dataUrl, note: file.name, created_at: lsNow()};
+        savePhotoIDB(projectId, photoData).then(() => {
+          savedCount++;
+          remaining--;
+          if (remaining === 0) {
+            showToast('✅ ' + savedCount + '枚追加しました');
+            renderPhotosTab(projectId);
           }
-          showToast('✅ ' + files.length + '枚追加しました');
-          renderPipelineDetail(projectId);
-        }
+        }).catch(err => {
+          remaining--;
+          showToast('写真の保存に失敗しました: ' + (err.message || err));
+          if (remaining === 0 && savedCount > 0) {
+            renderPhotosTab(projectId);
+          }
+        });
       };
-      img.src = e.target.result;
+      imgEl.src = e.target.result;
     };
     reader.readAsDataURL(file);
   });
@@ -2604,7 +2941,7 @@ function saveReport() {
   all.push({
     id:          lsNextId(all),
     project_id:  projectId,
-    user_id:     (document.getElementById('report-inp-user')||{}).value || 'kanno',
+    user_id:     (document.getElementById('report-inp-user')||{}).value || 'unknown',
     report_date: document.getElementById('report-inp-date').value,
     body,
     created_at:  lsNow(),
@@ -2697,6 +3034,17 @@ function filterProjectsByClient(clientName) {
 // ── マスター機能制御 ─────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════
 
+// ── ロールガードヘルパー（削除系関数共通）─────────────────────
+function requireMasterOrOffice() {
+  const uid = localStorage.getItem('ago_current_user');
+  const u = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users[uid] : null;
+  if (!u || (u.role !== 'master' && u.role !== 'office')) {
+    showToast(t('noPermission') || '権限がありません');
+    return false;
+  }
+  return true;
+}
+
 const FEATURE_LABELS = {
   orders:'発注管理', schedule:'スケジュール', accounting:'経理',
   attendance:'勤怠管理', gps:'GPS追跡', notifications:'通知管理',
@@ -2776,6 +3124,13 @@ function renderMasterPanel() {
   });
   if (currentVal) sel.value = currentVal;
   renderUserFeatures();
+  // Phase 6-H: 協力会社一覧を描画
+  if (typeof renderContractorList === 'function') {
+    renderContractorList(
+      typeof _ctrStatusFilter !== 'undefined' ? _ctrStatusFilter : 'all',
+      typeof _ctrCategoryFilter !== 'undefined' ? _ctrCategoryFilter : ''
+    );
+  }
 }
 
 function renderUserFeatures() {
@@ -2848,6 +3203,16 @@ function applyFeatureVisibility() {
       el.style.display = allowed ? '' : 'none';
     }
   });
+
+  // tab-projects / tab-instructions は master・office のみ表示（china・field は非表示）
+  // CLAUDE.md 仕様: china = 発注 + 通知のみ / field = 施工担当だが施工項目管理・指示は office 以上
+  const user = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users[uid] : null;
+  const role = user ? user.role : null;
+  const masterOfficeOnly = (role === 'master' || role === 'office');
+  ['tab-projects', 'tab-instructions'].forEach(tabId => {
+    const el = document.getElementById(tabId);
+    if (el) el.style.display = masterOfficeOnly ? '' : 'none';
+  });
 }
 
 // ── ログインモーダル ───────────────────────────────────────────
@@ -2893,6 +3258,10 @@ function onLoginUserSelect(userId, userObj) {
 }
 
 function loginPinKey(k) {
+  if (!MASTER_PIN) {
+    showToast('設定ファイルが読み込まれていません。config.js を確認してください。');
+    return;
+  }
   const bufInput = document.getElementById('login-pin-buffer');
   let buf = bufInput.value;
   if (k === 'clear') {
@@ -2956,11 +3325,12 @@ function initAccountingView() {
 
 function switchAccSub(sub) {
   currentAccSub = sub;
-  ['summary','invoices','po','expenses'].forEach(name => {
+  ['summary','estimates','invoices','po','expenses'].forEach(name => {
     document.getElementById('acc-sub-'+name).classList.toggle('active', name===sub);
     document.getElementById('acc-'+name+'-view').style.display = name===sub ? 'block' : 'none';
   });
   if (sub === 'summary') loadFinanceSummary();
+  if (sub === 'estimates') renderEstimates('all');
   if (sub === 'invoices') loadInvoices('invoice');
   if (sub === 'po') loadInvoices('purchase_order');
   if (sub === 'expenses') loadExpenses();
@@ -3041,20 +3411,21 @@ function openInvoiceDetail(id, docType) {
 
 // ── 請求書/発注書 モーダル ───────────────────────────────────
 function showInvoiceModal(docType, editData) {
-  const isEdit = editData && editData.id;
+  const isEdit = editData && editData.id;  // 既存データの編集（id あり）
+  const hasPrefill = editData && !editData.id;  // 見積書変換など id なしプリフィル
   const label = docType === 'purchase_order' ? '発注書' : '請求書';
   document.getElementById('inv-modal-title').textContent = isEdit ? `${label}編集` : `${label}作成`;
   document.getElementById('inv-edit-id').value = isEdit ? editData.id : '';
   document.getElementById('inv-doc-type').value = docType;
-  document.getElementById('inv-inp-subject').value = isEdit ? (editData.subject||'') : '';
-  document.getElementById('inv-inp-client').value = isEdit ? (editData.client_name||'') : '';
-  document.getElementById('inv-inp-issue').value = isEdit ? (editData.issue_date||'') : formatDate(new Date());
-  document.getElementById('inv-inp-due').value = isEdit ? (editData.due_date||'') : '';
-  document.getElementById('inv-inp-amount').value = isEdit ? (editData.amount||0) : 0;
-  document.getElementById('inv-inp-tax').value = isEdit ? (editData.tax||0) : 0;
-  document.getElementById('inv-inp-total').value = isEdit ? (editData.total||0) : 0;
-  document.getElementById('inv-inp-status').value = isEdit ? (editData.status||'draft') : 'draft';
-  document.getElementById('inv-inp-notes').value = isEdit ? (editData.notes||'') : '';
+  document.getElementById('inv-inp-subject').value = (isEdit || hasPrefill) ? (editData.subject||'') : '';
+  document.getElementById('inv-inp-client').value = (isEdit || hasPrefill) ? (editData.client_name||'') : '';
+  document.getElementById('inv-inp-issue').value = (isEdit || hasPrefill) ? (editData.issue_date||formatDate(new Date())) : formatDate(new Date());
+  document.getElementById('inv-inp-due').value = (isEdit || hasPrefill) ? (editData.due_date||'') : '';
+  document.getElementById('inv-inp-amount').value = (isEdit || hasPrefill) ? (editData.amount||0) : 0;
+  document.getElementById('inv-inp-tax').value = (isEdit || hasPrefill) ? (editData.tax||0) : 0;
+  document.getElementById('inv-inp-total').value = (isEdit || hasPrefill) ? (editData.total||0) : 0;
+  document.getElementById('inv-inp-status').value = (isEdit || hasPrefill) ? (editData.status||'draft') : 'draft';
+  document.getElementById('inv-inp-notes').value = (isEdit || hasPrefill) ? (editData.notes||'') : '';
 
   // 現場ドロップダウン
   const projSel = document.getElementById('inv-inp-project');
@@ -3062,12 +3433,12 @@ function showInvoiceModal(docType, editData) {
   schProjects.forEach(p => {
     projSel.innerHTML += `<option value="${p.id}">${escHtml(p.name)}</option>`;
   });
-  if (isEdit && editData.project_id) projSel.value = editData.project_id;
+  if ((isEdit || hasPrefill) && editData.project_id) projSel.value = editData.project_id;
 
   // 明細行
   const itemsContainer = document.getElementById('inv-items-container');
   itemsContainer.innerHTML = '';
-  if (isEdit && editData.items && editData.items.length > 0) {
+  if ((isEdit || hasPrefill) && editData.items && editData.items.length > 0) {
     editData.items.forEach(item => addInvItemRow(item));
   } else {
     addInvItemRow();
@@ -3138,7 +3509,7 @@ function saveInvoice() {
     status: document.getElementById('inv-inp-status').value,
     notes: document.getElementById('inv-inp-notes').value.trim(),
     items,
-    created_by: localStorage.getItem('ago_current_user') || 'kanno',
+    created_by: localStorage.getItem('ago_current_user') || 'unknown',
   };
 
   const lsKey = body.doc_type === 'purchase_order' ? LS_PO : LS_INVOICES;
@@ -3231,7 +3602,7 @@ function saveExpense() {
     project_id: document.getElementById('exp-inp-project').value || null,
     paid_by: document.getElementById('exp-inp-paidby').value,
     notes: document.getElementById('exp-inp-notes').value.trim(),
-    created_by: localStorage.getItem('ago_current_user') || 'kanno',
+    created_by: localStorage.getItem('ago_current_user') || 'unknown',
   };
 
   const all = lsLoad(LS_EXPENSES);
@@ -3837,6 +4208,192 @@ function lsNow() {
   return new Date().toISOString().slice(0, 16).replace('T', ' ');
 }
 
+// ── IndexedDB 写真ストレージ（Phase 6-F）────────────────────────
+const IDB_NAME    = 'agoPhotosDB';
+const IDB_VERSION = 1;
+const IDB_STORE   = 'ago_photos';
+let _photosDB = null;  // DB接続キャッシュ
+
+function openPhotosDB() {
+  if (_photosDB) return Promise.resolve(_photosDB);
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) {
+      reject(new Error('IndexedDB unavailable'));
+      return;
+    }
+    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+    req.onupgradeneeded = function(e) {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = function(e) {
+      _photosDB = e.target.result;
+      resolve(_photosDB);
+    };
+    req.onerror = function(e) {
+      reject(e.target.error);
+    };
+  });
+}
+
+async function savePhotoIDB(projectId, photoData) {
+  const db = await openPhotosDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const store = tx.objectStore(IDB_STORE);
+    const record = {
+      id:         String(projectId) + '_' + Date.now(),
+      projectId:  String(projectId),
+      name:       photoData.note || '',
+      dataUrl:    photoData.data,
+      size:       photoData.data ? photoData.data.length : 0,
+      uploadedAt: photoData.created_at || lsNow(),
+      uploadedBy: localStorage.getItem('ago_current_user') || 'unknown',
+      memo:       photoData.note || '',
+    };
+    const req = store.add(record);
+    req.onsuccess = () => resolve(record);
+    req.onerror   = (e) => reject(e.target.error);
+  });
+}
+
+async function loadPhotosIDB(projectId) {
+  const db = await openPhotosDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const store = tx.objectStore(IDB_STORE);
+    const results = [];
+    const req = store.openCursor();
+    req.onsuccess = function(e) {
+      const cursor = e.target.result;
+      if (cursor) {
+        if (String(cursor.value.projectId) === String(projectId)) {
+          results.push(cursor.value);
+        }
+        cursor.continue();
+      } else {
+        resolve(results);
+      }
+    };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function deletePhotoIDB(photoId) {
+  const db = await openPhotosDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const store = tx.objectStore(IDB_STORE);
+    const req = store.delete(photoId);
+    req.onsuccess = () => resolve();
+    req.onerror   = (e) => reject(e.target.error);
+  });
+}
+
+async function migratePhotosToIDB(projectId) {
+  const migratedKey = 'ago_photos_migrated_' + projectId;
+  if (localStorage.getItem(migratedKey) === '1') return;
+  const lsKey = LS_PROJECT_PHOTOS + projectId;
+  const old = lsLoad(lsKey);
+  if (!old || old.length === 0) {
+    localStorage.setItem(migratedKey, '1');
+    return;
+  }
+  try {
+    for (const ph of old) {
+      await savePhotoIDB(projectId, ph);
+    }
+    localStorage.removeItem(lsKey);
+    localStorage.setItem(migratedKey, '1');
+  } catch(e) {
+    console.warn('[Phase6-F] migratePhotosToIDB error:', e);
+  }
+}
+
+// 写真タブをIndexedDB経由で非同期描画
+async function renderPhotosTab(projectId) {
+  try {
+    await migratePhotosToIDB(projectId);
+  } catch(e) {
+    console.warn('[Phase6-F] migration error:', e);
+  }
+  let photos = [];
+  let useIDB = true;
+  try {
+    photos = await loadPhotosIDB(projectId);
+  } catch(e) {
+    // IndexedDB 不可フォールバック: localStorage から読む
+    useIDB = false;
+    photos = lsLoad(LS_PROJECT_PHOTOS + projectId);
+  }
+
+  const container = document.getElementById('photo-grid-' + projectId);
+  const countEl   = document.getElementById('photo-count-' + projectId);
+  if (!container) return;
+
+  if (countEl) countEl.textContent = photos.length + '枚';
+
+  if (photos.length === 0) {
+    container.innerHTML = '<p style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:20px">写真はありません</p>';
+    return;
+  }
+
+  // 撮影日時昇順でソート
+  photos.sort((a, b) => (a.uploadedAt || a.created_at || '') < (b.uploadedAt || b.created_at || '') ? -1 : 1);
+
+  let inner = '';
+  photos.forEach((ph, idx) => {
+    const src    = ph.dataUrl || ph.data || '';
+    const label  = escHtml(ph.memo || ph.name || ph.note || ph.uploadedAt || ph.created_at || '');
+    const photoId = ph.id || '';
+    inner += `<div style="position:relative">
+      <div class="photo-thumb" onclick="openPhotoViewerIDB('${String(projectId)}',${idx})">
+        <img src="${src}" loading="lazy" style="width:100%;height:100%;object-fit:cover">
+        <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</div>
+      </div>
+      <button onclick="confirmDeletePhoto('${photoId}',${projectId})" style="position:absolute;top:2px;right:2px;background:rgba(239,68,68,.85);border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>
+      <button onclick="openBlackboardModal(${projectId},'${photoId}')" title="${t('blackboard')}" style="position:absolute;bottom:20px;right:2px;background:rgba(26,92,42,.9);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:4px;padding:2px 5px;font-size:10px;cursor:pointer;line-height:1.4">🪧</button>
+    </div>`;
+  });
+  container.innerHTML = inner;
+
+  // ビューア用データをグローバルに保持
+  window._idbPhotoCache = window._idbPhotoCache || {};
+  window._idbPhotoCache[String(projectId)] = photos;
+}
+
+// IndexedDB版フォトビューア
+function openPhotoViewerIDB(projectId, idx) {
+  const photos = (window._idbPhotoCache || {})[String(projectId)] || [];
+  if (!photos[idx]) return;
+  const ph = photos[idx];
+  const viewer  = document.getElementById('photo-viewer');
+  const img     = document.getElementById('photo-viewer-img');
+  const caption = document.getElementById('photo-viewer-caption');
+  img.src = ph.dataUrl || ph.data || '';
+  caption.textContent = ph.memo || ph.name || ph.note || '';
+  viewer.style.display = 'flex';
+}
+
+// 写真削除確認
+async function confirmDeletePhoto(photoId, projectId) {
+  if (!confirm('この写真を削除しますか？')) return;
+  try {
+    await deletePhotoIDB(photoId);
+    showToast('写真を削除しました');
+    // キャッシュも更新
+    if (window._idbPhotoCache && window._idbPhotoCache[String(projectId)]) {
+      window._idbPhotoCache[String(projectId)] =
+        window._idbPhotoCache[String(projectId)].filter(p => p.id !== photoId);
+    }
+    renderPhotosTab(projectId);
+  } catch(e) {
+    showToast('写真の削除に失敗しました: ' + e.message);
+  }
+}
+
 const PROJECT_COLORS = ['#6366f1','#10b981','#f59e0b','#3b82f6','#8b5cf6','#f97316','#ef4444','#ec4899','#14b8a6','#84cc16'];
 
 // 月曜日を取得
@@ -3891,7 +4448,7 @@ function updateWeekLabel() {
 // サブタブ切替
 function switchSchSub(sub) {
   currentSchSub = sub;
-  ['overview','timeline','projects','personal'].forEach(name => {
+  ['overview','timeline','projects','personal','board'].forEach(name => {
     document.getElementById('sch-sub-'+name).classList.toggle('active', name===sub);
     document.getElementById('sch-'+name).style.display = name===sub ? 'block' : 'none';
   });
@@ -3899,6 +4456,7 @@ function switchSchSub(sub) {
   if (sub === 'timeline') renderTimeline();
   if (sub === 'projects') renderProjectsView();
   if (sub === 'personal') loadPersonalSchedule();
+  if (sub === 'board') renderBoardView();
 }
 
 // 初期化
@@ -4317,7 +4875,7 @@ function saveScheduleEntry() {
       project_name,
       notes: document.getElementById('sch-inp-notes').value.trim(),
       staff,
-      created_by: localStorage.getItem('ago_current_user') || 'kanno',
+      created_by: localStorage.getItem('ago_current_user') || 'unknown',
       created_at: lsNow(),
     };
     all.push(entry);
@@ -4335,6 +4893,31 @@ function saveScheduleEntry() {
 }
 
 function deleteScheduleEntry(entryId) {
+  // master/office は全て削除可
+  // field は自分のエントリーのみ削除可
+  // china は削除不可
+  const currentUserId = localStorage.getItem('ago_current_user');
+  const currentUser = APP_CONFIG && APP_CONFIG.users
+    ? APP_CONFIG.users[currentUserId]
+    : null;
+  if (!currentUser) { showToast(t('noPermission') || '権限がありません'); return; }
+
+  if (currentUser.role === 'china') {
+    showToast(t('noPermission') || '権限がありません');
+    return;
+  }
+
+  if (currentUser.role === 'field') {
+    // fieldは自分のエントリーのみ削除可
+    const allEntries = lsLoad(LS_SCH_ENTRIES, []);
+    const entry = allEntries.find(e => String(e.id) === String(entryId));
+    if (!entry || entry.created_by !== currentUserId) {
+      showToast(t('noPermission') || '権限がありません');
+      return;
+    }
+  }
+  // master/office は制限なし（ここまで来たら削除実行）
+
   if (!confirm('このスケジュールを削除しますか？')) return;
   const all = lsLoad(LS_SCH_ENTRIES).filter(e => e.id != entryId);
   lsSave(LS_SCH_ENTRIES, all);
@@ -4447,6 +5030,11 @@ const EXPORT_KEYS = [
   LS_PROJECT_REPORTS, LS_PROJECT_CHECKLISTS,
   'ago_attendance', 'ago_gps_logs', 'ago_instructions',
   'ago_feature_overrides',
+  'ago_board_assignments',
+  'ago_drawings',
+  'ago_estimates',
+  'ago_project_chats',
+  'ago_contractors',
 ];
 
 function exportAllData() {
@@ -4454,7 +5042,8 @@ function exportAllData() {
   EXPORT_KEYS.forEach(key => {
     try { snap[key] = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { snap[key] = null; }
   });
-  // 写真は容量大のため別途メッセージ
+  // Phase 6-F: 写真はIndexedDB管理のため localStorageスキャンは移行残りのみ対象
+  // IndexedDB写真のJSON書き出しは申し送り事項（次フェーズ対応推奨）
   const photosKeys = Object.keys(localStorage).filter(k => k.startsWith('ago_project_photos_'));
   photosKeys.forEach(key => {
     try { snap[key] = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { snap[key] = null; }
@@ -4515,7 +5104,2275 @@ loadOrders();
 setInterval(loadOrders, 30000);
 registerSW();
 applyFeatureVisibility();
+
+// ═══════════════════════════════════════════════════════════════
+// ── ANDPADボード（Phase 6-A）────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+const LS_BOARD = 'ago_board_assignments';
+let boardWeekOffset = 0; // 0=今週, -1=先週, 1=来週
+
+function getBoardWeekDates(offset) {
+  const today = new Date();
+  const dow = today.getDay(); // 0=日
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1) + offset * 7);
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    days.push(d);
+  }
+  return days;
+}
+
+function boardPrevWeek() { boardWeekOffset--; renderBoardView(); }
+function boardNextWeek() { boardWeekOffset++; renderBoardView(); }
+
+function renderBoardView() {
+  const days = getBoardWeekDates(boardWeekOffset);
+  const todayStr = formatDate(new Date());
+
+  // ヘッダー週ラベル
+  const label = (days[0].getMonth()+1) + '/' + days[0].getDate() + ' 〜 ' + (days[6].getMonth()+1) + '/' + days[6].getDate();
+  document.getElementById('board-week-label').textContent = label;
+
+  // スタッフリスト（fieldロールのみ）
+  const staffList = [];
+  if (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) {
+    Object.entries(APP_CONFIG.users).forEach(([id, u]) => {
+      if (u.role === 'field') staffList.push({ id, name: u.name });
+    });
+  }
+  if (staffList.length === 0) {
+    // フォールバック
+    for (let i = 1; i <= 10; i++) {
+      staffList.push({ id: 'staff' + String(i).padStart(2,'0'), name: 'スタッフ' + String(i).padStart(2,'0') });
+    }
+  }
+
+  // 案件一覧
+  const projects = lsLoad(LS_SCH_PROJECTS);
+  const pipelineProjects = lsLoad(LS_PROJECTS_PIPELINE);
+  const allProjects = [
+    ...projects.map(p => ({ id: 'sch_' + p.id, name: p.name, color: p.color || '#6366f1' })),
+    ...pipelineProjects.map(p => ({ id: 'pip_' + p.id, name: p.name, color: '#10b981' }))
+  ];
+
+  // 割り当てデータ
+  const assignments = lsLoad(LS_BOARD);
+
+  const DOW_LABELS = ['月','火','水','木','金','土','日'];
+
+  // グリッド生成
+  let html = '<table style="border-collapse:collapse;min-width:700px;width:100%;font-size:13px">';
+
+  // 日付ヘッダー行
+  html += '<thead><tr><th style="padding:8px 12px;background:var(--surface);border:1px solid var(--border);min-width:80px;position:sticky;left:0;z-index:2">スタッフ</th>';
+  days.forEach((d, i) => {
+    const ds = formatDate(d);
+    const isToday = ds === todayStr;
+    const isSun = i === 6;
+    const isSat = i === 5;
+    html += `<th style="padding:8px;background:${isToday ? 'rgba(99,102,241,0.2)' : 'var(--surface)'};border:1px solid var(--border);min-width:110px;text-align:center;color:${isSun ? 'var(--red)' : isSat ? '#60a5fa' : 'var(--text)'}">
+      <div style="font-weight:700">${DOW_LABELS[i]}</div>
+      <div style="font-size:12px;color:var(--muted)">${(d.getMonth()+1)}/${d.getDate()}</div>
+    </th>`;
+  });
+  html += '</tr></thead>';
+
+  // スタッフ行
+  html += '<tbody>';
+  staffList.forEach(staff => {
+    html += `<tr>
+      <td style="padding:6px 12px;background:var(--surface);border:1px solid var(--border);font-weight:600;white-space:nowrap;position:sticky;left:0;z-index:1">${staff.name}</td>`;
+    days.forEach(d => {
+      const ds = formatDate(d);
+      const isToday = ds === todayStr;
+      const cellAssigns = assignments.filter(a => a.date === ds && a.staffId === staff.id);
+      html += `<td style="padding:4px;background:${isToday ? 'rgba(99,102,241,0.05)' : 'var(--bg)'};border:1px solid var(--border);vertical-align:top;min-height:60px" onclick="openBoardAssign('${staff.id}','${staff.name}','${ds}')">`;
+      cellAssigns.forEach(a => {
+        const proj = allProjects.find(p => p.id === a.projectId) || { name: a.projectName || '案件', color: '#6366f1' };
+        html += `<div style="background:${proj.color};color:#fff;border-radius:4px;padding:3px 6px;font-size:11px;margin-bottom:2px;cursor:pointer;position:relative" title="${proj.name}">
+          <span>${proj.name.length > 8 ? proj.name.slice(0,8)+'…' : proj.name}</span>
+          <span onclick="event.stopPropagation();removeBoardAssign(${a.id})" style="position:absolute;right:4px;top:2px;cursor:pointer;opacity:0.8">×</span>
+        </div>`;
+      });
+      html += `<div style="color:var(--muted);font-size:18px;text-align:center;padding:4px;opacity:0.3">+</div>`;
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+
+  // 凡例
+  html += '<div style="margin-top:12px;font-size:12px;color:var(--muted)">セルをクリックして案件を割り当てます</div>';
+
+  document.getElementById('board-grid').innerHTML = html;
+}
+
+function openBoardAssign(staffId, staffName, ds) {
+  const projects = lsLoad(LS_SCH_PROJECTS);
+  const pipelineProjects = lsLoad(LS_PROJECTS_PIPELINE);
+  const allProjects = [
+    ...projects.map(p => ({ id: 'sch_' + p.id, name: p.name })),
+    ...pipelineProjects.map(p => ({ id: 'pip_' + p.id, name: p.name }))
+  ];
+
+  let opts = allProjects.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+  if (!opts) opts = '<option value="">（案件がありません）</option>';
+
+  const modalHtml = `
+    <div class="modal-overlay show" id="board-assign-modal" style="z-index:2000" onclick="if(event.target===this)this.remove()">
+      <div class="modal" style="max-width:360px">
+        <h3 style="margin-bottom:12px">${escHtml(staffName)} — ${ds}</h3>
+        <div style="margin-bottom:12px">
+          <label style="font-size:13px;color:var(--muted)">案件を選択</label>
+          <select id="board-proj-select" style="width:100%;padding:8px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;margin-top:4px">
+            ${opts}
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+          <div>
+            <label style="font-size:13px;color:var(--muted)">開始</label>
+            <input type="time" id="board-start-time" value="09:00" style="width:100%;padding:6px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;margin-top:4px">
+          </div>
+          <div>
+            <label style="font-size:13px;color:var(--muted)">終了</label>
+            <input type="time" id="board-end-time" value="18:00" style="width:100%;padding:6px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;margin-top:4px">
+          </div>
+        </div>
+        <div style="margin-bottom:16px">
+          <label style="font-size:13px;color:var(--muted)">メモ</label>
+          <input type="text" id="board-note" placeholder="備考（任意）" style="width:100%;padding:8px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;margin-top:4px">
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-primary" onclick="saveBoardAssign('${staffId}','${ds}')" style="flex:1">割り当て</button>
+          <button class="btn-secondary" onclick="document.getElementById('board-assign-modal').remove()" style="flex:1">キャンセル</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function saveBoardAssign(staffId, date) {
+  const projId = document.getElementById('board-proj-select').value;
+  if (!projId) { showToast('案件を選択してください'); return; }
+  const projName = document.getElementById('board-proj-select').selectedOptions[0].text;
+  const all = lsLoad(LS_BOARD);
+  const newEntry = {
+    id: lsNextId(all),
+    date,
+    staffId,
+    projectId: projId,
+    projectName: projName,
+    startTime: document.getElementById('board-start-time').value,
+    endTime: document.getElementById('board-end-time').value,
+    note: document.getElementById('board-note').value.trim(),
+    createdAt: lsNow()
+  };
+  all.push(newEntry);
+  lsSave(LS_BOARD, all);
+  document.getElementById('board-assign-modal').remove();
+  showToast('割り当てました');
+  renderBoardView();
+}
+
+function removeBoardAssign(id) {
+  if (!requireMasterOrOffice()) return;
+  if (!confirm('この割り当てを削除しますか？')) return;
+  const all = lsLoad(LS_BOARD).filter(a => a.id !== id);
+  lsSave(LS_BOARD, all);
+  renderBoardView();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── 図面管理（Phase 6-B）─────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+const LS_DRAWINGS = 'ago_drawings';
+const LS_CHATS    = 'ago_project_chats';    // Phase 6-D 案件別チャット
+let currentDrawingId = null;  // 現在ビューア表示中の図面ID
+let currentDrawingProjectId = null;
+let drawTool = 'pen';  // 'pen' | 'eraser' | 'pin'
+let isDrawing = false;
+let pendingPinPos = null;  // ピン追加待ちの座標 {x, y} (0-1 ratio)
+
+function uploadDrawings(event, projectId) {
+  const files = Array.from(event.target.files);
+  if (!files.length) return;
+  const all = lsLoad(LS_DRAWINGS);
+  let count = 0;
+
+  files.forEach(file => {
+    if (file.size > 3 * 1024 * 1024) {
+      showToast('⚠️ ' + file.name + ' は3MBを超えています（スキップ）');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      // 画像の場合はCanvas圧縮
+      if (file.type.startsWith('image/')) {
+        const img = new Image();
+        img.onload = function() {
+          const MAX = 1200;
+          let w = img.width, h = img.height;
+          if (w > MAX || h > MAX) {
+            const r = Math.min(MAX/w, MAX/h);
+            w = Math.round(w*r); h = Math.round(h*r);
+          }
+          const cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          cv.getContext('2d').drawImage(img, 0, 0, w, h);
+          const dataUrl = cv.toDataURL('image/jpeg', 0.75);
+          storeDrawing(all, projectId, file.name, dataUrl, 'image');
+          count++;
+          lsSave(LS_DRAWINGS, all);
+          renderDrawingsList(projectId);
+          showToast('図面を追加しました');
+        };
+        img.src = e.target.result;
+      } else {
+        // PDF: そのまま保存（容量注意）
+        storeDrawing(all, projectId, file.name, e.target.result, 'pdf');
+        count++;
+        lsSave(LS_DRAWINGS, all);
+        renderDrawingsList(projectId);
+        showToast('図面を追加しました');
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function storeDrawing(all, projectId, name, dataUrl, type) {
+  // 同名ファイルはバージョンアップ
+  const existing = all.find(d => d.projectId == projectId && d.name === name);
+  if (existing) {
+    existing.version = (existing.version || 1) + 1;
+    existing.dataUrl = dataUrl;
+    existing.uploadedAt = lsNow();
+    existing.uploadedBy = localStorage.getItem('ago_current_user') || 'unknown';
+    existing.annotations = [];  // 書き込みはリセット
+  } else {
+    all.push({
+      id: lsNextId(all),
+      projectId,
+      name,
+      type,
+      dataUrl,
+      version: 1,
+      uploadedAt: lsNow(),
+      uploadedBy: localStorage.getItem('ago_current_user') || 'unknown',
+      annotations: [],
+      pins: []
+    });
+  }
+}
+
+function renderDrawingsList(projectId) {
+  const el = document.getElementById('drawings-list-' + projectId);
+  if (!el) return;
+  const drawings = lsLoad(LS_DRAWINGS).filter(d => d.projectId == projectId);
+  if (!drawings.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px">図面がありません</div>';
+    return;
+  }
+  el.innerHTML = drawings.map(d => `
+    <div style="background:var(--card);border-radius:8px;overflow:hidden;cursor:pointer;border:1px solid var(--border)" onclick="openDrawingViewer(${d.id}, ${projectId})">
+      <div style="height:80px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:32px">
+        ${d.type === 'pdf' ? '📄' : '<img src="' + d.dataUrl + '" style="width:100%;height:80px;object-fit:cover">'}
+      </div>
+      <div style="padding:6px 8px">
+        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(d.name)}</div>
+        <div style="font-size:10px;color:var(--muted)">v${d.version || 1} · ${(d.pins||[]).length}ピン</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openDrawingViewer(drawingId, projectId) {
+  const drawings = lsLoad(LS_DRAWINGS);
+  const d = drawings.find(x => x.id == drawingId);
+  if (!d) return;
+  currentDrawingId = drawingId;
+  currentDrawingProjectId = projectId;
+
+  document.getElementById('viewer-title').textContent = d.name + ' (v' + (d.version||1) + ')';
+
+  const modal = document.getElementById('drawing-viewer-modal');
+  modal.classList.add('show');
+
+  const img = document.getElementById('viewer-img');
+
+  if (d.type === 'pdf') {
+    // PDFはiframe経由で表示
+    img.style.display = 'none';
+    let iframeEl = document.getElementById('viewer-iframe');
+    if (!iframeEl) {
+      iframeEl = document.createElement('iframe');
+      iframeEl.id = 'viewer-iframe';
+      iframeEl.style.cssText = 'width:100%;min-height:600px;border:none;display:block';
+      document.getElementById('viewer-container').insertBefore(iframeEl, document.getElementById('draw-canvas'));
+    }
+    iframeEl.src = d.dataUrl;
+    iframeEl.style.display = 'block';
+    const canvas = document.getElementById('draw-canvas');
+    canvas.style.display = 'none';
+  } else {
+    // 画像表示
+    let iframeEl = document.getElementById('viewer-iframe');
+    if (iframeEl) iframeEl.style.display = 'none';
+    img.style.display = 'block';
+    img.src = d.dataUrl;
+    img.onload = function() {
+      const canvas = document.getElementById('draw-canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.style.width = img.offsetWidth + 'px';
+      canvas.style.height = img.offsetHeight + 'px';
+      canvas.style.display = 'block';
+      // 既存アノテーション復元
+      restoreAnnotations(canvas, d.annotations || []);
+      initDrawCanvas(canvas);
+    };
+  }
+
+  // ピン一覧描画
+  renderPinList(d.pins || []);
+}
+
+function closeDrawingViewer() {
+  document.getElementById('drawing-viewer-modal').classList.remove('show');
+  currentDrawingId = null;
+}
+
+function restoreAnnotations(canvas, annotations) {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  annotations.forEach(line => {
+    if (!line.points || line.points.length < 2) return;
+    ctx.strokeStyle = line.color || '#ef4444';
+    ctx.lineWidth = line.width || 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(line.points[0].x, line.points[0].y);
+    line.points.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+  });
+}
+
+let currentAnnotations = [];
+let currentStroke = null;
+
+function initDrawCanvas(canvas) {
+  const drawings = lsLoad(LS_DRAWINGS);
+  const d = drawings.find(x => x.id == currentDrawingId);
+  currentAnnotations = d ? (d.annotations || []) : [];
+
+  canvas.onmousedown = function(e) {
+    if (drawTool === 'pin') {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      pendingPinPos = {x, y};
+      openPinModal();
+      return;
+    }
+    isDrawing = true;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    currentStroke = {
+      color: drawTool === 'eraser' ? '#00000000' : document.getElementById('draw-color').value,
+      width: drawTool === 'eraser' ? 20 : 3,
+      eraser: drawTool === 'eraser',
+      points: [{ x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY }]
+    };
+  };
+  canvas.onmousemove = function(e) {
+    if (!isDrawing || !currentStroke) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const pt = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    currentStroke.points.push(pt);
+    const ctx = canvas.getContext('2d');
+    if (currentStroke.eraser) {
+      ctx.clearRect(pt.x - 10, pt.y - 10, 20, 20);
+    } else {
+      ctx.strokeStyle = currentStroke.color;
+      ctx.lineWidth = currentStroke.width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      const pts = currentStroke.points;
+      if (pts.length >= 2) {
+        ctx.beginPath();
+        ctx.moveTo(pts[pts.length-2].x, pts[pts.length-2].y);
+        ctx.lineTo(pt.x, pt.y);
+        ctx.stroke();
+      }
+    }
+  };
+  canvas.onmouseup = function() {
+    if (isDrawing && currentStroke) {
+      currentAnnotations.push(currentStroke);
+      currentStroke = null;
+    }
+    isDrawing = false;
+  };
+  canvas.onmouseleave = canvas.onmouseup;
+
+  // タッチ対応
+  canvas.ontouchstart = function(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    canvas.onmousedown({ clientX: touch.clientX, clientY: touch.clientY });
+  };
+  canvas.ontouchmove = function(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    canvas.onmousemove({ clientX: touch.clientX, clientY: touch.clientY });
+  };
+  canvas.ontouchend = function() { canvas.onmouseup(); };
+}
+
+function setDrawTool(tool) {
+  drawTool = tool;
+  ['pen','eraser','pin'].forEach(t => {
+    const btn = document.getElementById('tool-' + t);
+    if (btn) btn.style.background = t === tool ? 'var(--primary)' : '';
+  });
+}
+
+function saveDrawingAnnotations() {
+  if (!currentDrawingId) return;
+  const all = lsLoad(LS_DRAWINGS);
+  const d = all.find(x => x.id == currentDrawingId);
+  if (d) {
+    d.annotations = currentAnnotations;
+    lsSave(LS_DRAWINGS, all);
+    showToast('図面の書き込みを保存しました');
+  }
+}
+
+function openPinModal() {
+  // 担当者セレクト生成
+  const sel = document.getElementById('pin-assignee');
+  sel.innerHTML = '';
+  const users = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users : {};
+  Object.entries(users).forEach(([id, u]) => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = u.name;
+    sel.appendChild(opt);
+  });
+  document.getElementById('pin-comment').value = '';
+  document.getElementById('drawing-pin-modal').classList.add('show');
+}
+
+function savePinFromModal() {
+  if (!pendingPinPos || !currentDrawingId) return;
+  const comment = document.getElementById('pin-comment').value.trim();
+  if (!comment) { showToast('指摘内容を入力してください'); return; }
+  const assignee = document.getElementById('pin-assignee').value;
+  const all = lsLoad(LS_DRAWINGS);
+  const d = all.find(x => x.id == currentDrawingId);
+  if (d) {
+    if (!d.pins) d.pins = [];
+    d.pins.push({
+      id: Date.now(),
+      x: pendingPinPos.x,
+      y: pendingPinPos.y,
+      comment,
+      assignee,
+      status: 'pending',
+      createdAt: lsNow(),
+      createdBy: localStorage.getItem('ago_current_user') || 'unknown'
+    });
+    lsSave(LS_DRAWINGS, all);
+    renderPinList(d.pins);
+    // ピンをCanvasに描画
+    const canvas = document.getElementById('draw-canvas');
+    const ctx = canvas.getContext('2d');
+    const px = pendingPinPos.x * canvas.width;
+    const py = pendingPinPos.y * canvas.height;
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(px, py, 8, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('!', px, py + 4);
+    currentAnnotations.push({ type: 'pin_marker', x: px, y: py });
+  }
+  pendingPinPos = null;
+  hideModal('drawing-pin-modal');
+  showToast('ピンを追加しました');
+}
+
+function renderPinList(pins) {
+  const el = document.getElementById('pin-list-panel');
+  if (!el) return;
+  if (!pins || !pins.length) { el.innerHTML = '<span style="color:var(--muted)">ピンなし</span>'; return; }
+  const users = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users : {};
+  el.innerHTML = '<div style="font-weight:700;margin-bottom:6px">📍 指摘一覧</div>' + pins.map((p, i) => {
+    const assigneeName = (users[p.assignee] && users[p.assignee].name) || p.assignee || '未指定';
+    const statusLabel = p.status === 'done' ? '✅完了' : p.status === 'in_progress' ? '🔄対応中' : '⚠️未対応';
+    return `<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--red);font-weight:700;min-width:20px">${i+1}</span>
+      <div style="flex:1">
+        <div>${escHtml(p.comment)}</div>
+        <div style="font-size:11px;color:var(--muted)">${assigneeName} · ${statusLabel}</div>
+      </div>
+      <select onchange="updatePinStatus(${p.id}, this.value, ${currentDrawingId})" style="font-size:11px;padding:2px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:4px">
+        <option value="pending" ${p.status==='pending'?'selected':''}>未対応</option>
+        <option value="in_progress" ${p.status==='in_progress'?'selected':''}>対応中</option>
+        <option value="done" ${p.status==='done'?'selected':''}>完了</option>
+      </select>
+    </div>`;
+  }).join('');
+}
+
+function updatePinStatus(pinId, status, drawingId) {
+  const all = lsLoad(LS_DRAWINGS);
+  const d = all.find(x => x.id == drawingId);
+  if (d) {
+    const pin = (d.pins || []).find(p => p.id == pinId);
+    if (pin) { pin.status = status; lsSave(LS_DRAWINGS, all); }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── 見積書 (Phase 6-C) ───────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+const EST_STATUS_LABELS = {draft:'下書き', sent:'送付済', approved:'承認済', rejected:'却下'};
+let estCurrentFilter = 'all';
+let estItemCounter = 0;
+
+function lsEstimates() {
+  return lsLoad(LS_ESTIMATES);
+}
+
+function nextEstimateId() {
+  const all = lsEstimates();
+  const now = new Date();
+  const yyyymm = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
+  const seq = String(all.length + 1).padStart(4, '0');
+  return `EST-${yyyymm}-${seq}`;
+}
+
+function saveEstimate() {
+  const subject = document.getElementById('est-inp-subject').value.trim();
+  if (!subject) { showToast('件名は必須です'); return; }
+
+  const editId = document.getElementById('est-edit-id').value;
+
+  // 明細収集
+  const items = [];
+  let subtotal = 0;
+  document.querySelectorAll('#est-items-body .est-item-row').forEach(row => {
+    const name      = row.querySelector('.est-iname').value.trim();
+    const qty       = parseFloat(row.querySelector('.est-iqty').value) || 0;
+    const unit      = row.querySelector('.est-iunit').value.trim();
+    const unitPrice = parseInt(row.querySelector('.est-iprice').value) || 0;
+    const amount    = Math.round(qty * unitPrice);
+    if (name) {
+      items.push({name, qty, unit, unitPrice, amount});
+      subtotal += amount;
+    }
+  });
+  const taxRate   = 10;
+  const taxAmount = Math.round(subtotal * taxRate / 100);
+  const total     = subtotal + taxAmount;
+
+  // プロジェクト名を取得
+  const projSel = document.getElementById('est-inp-project');
+  const projectId   = projSel.value || '';
+  const projectName = projSel.selectedOptions[0]
+    ? (projSel.selectedOptions[0].text === '-- なし --' ? '' : projSel.selectedOptions[0].text)
+    : '';
+
+  const body = {
+    projectId,
+    projectName,
+    clientName:  document.getElementById('est-inp-client').value.trim(),
+    subject,
+    date:        document.getElementById('est-inp-date').value,
+    validUntil:  document.getElementById('est-inp-valid').value,
+    status:      document.getElementById('est-inp-status').value,
+    items,
+    subtotal,
+    taxRate,
+    taxAmount,
+    total,
+    notes:       document.getElementById('est-inp-notes').value.trim(),
+    createdBy:   localStorage.getItem('ago_current_user') || '',
+  };
+
+  const all = lsEstimates();
+  const now = lsNow();
+
+  if (editId) {
+    const idx = all.findIndex(e => e.id === editId);
+    if (idx >= 0) {
+      Object.assign(all[idx], body, {id: editId, updatedAt: now});
+    }
+  } else {
+    body.id        = nextEstimateId();
+    body.createdAt = now;
+    body.updatedAt = now;
+    all.push(body);
+  }
+
+  lsSave(LS_ESTIMATES, all);
+  closeEstimateModal();
+  showToast(editId ? '見積書を更新しました' : '見積書を作成しました');
+  renderEstimates(estCurrentFilter);
+}
+
+function deleteEstimate(id) {
+  if (!requireMasterOrOffice()) return;
+  if (!confirm('この見積書を削除しますか？この操作は取り消せません。')) return;
+  const all = lsEstimates().filter(e => e.id !== id);
+  lsSave(LS_ESTIMATES, all);
+  showToast('見積書を削除しました');
+  renderEstimates(estCurrentFilter);
+}
+
+function deleteEstimateFromModal() {
+  if (!requireMasterOrOffice()) return;
+  const id = document.getElementById('est-edit-id').value;
+  if (!id) return;
+  if (!confirm('この見積書を削除しますか？この操作は取り消せません。')) return;
+  const all = lsEstimates().filter(e => e.id !== id);
+  lsSave(LS_ESTIMATES, all);
+  closeEstimateModal();
+  showToast('見積書を削除しました');
+  renderEstimates(estCurrentFilter);
+}
+
+function renderEstimates(statusFilter) {
+  estCurrentFilter = statusFilter || 'all';
+
+  // フィルタボタン active 更新
+  ['all','draft','sent','approved','rejected'].forEach(s => {
+    const btn = document.getElementById('est-filter-'+s);
+    if (btn) btn.classList.toggle('active', s === estCurrentFilter);
+  });
+
+  let items = lsEstimates();
+  if (estCurrentFilter !== 'all') {
+    items = items.filter(e => e.status === estCurrentFilter);
+  }
+
+  const container = document.getElementById('acc-estimates-list');
+  if (!container) return;
+
+  if (items.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">📝</div><p>見積書がありません</p></div>';
+    return;
+  }
+
+  container.innerHTML = [...items].reverse().map(est => {
+    const statusLabel = EST_STATUS_LABELS[est.status] || est.status;
+    return `<div class="acc-card" onclick="openEstimateModal('${escHtml(est.id)}')">
+      <div class="acc-card-top">
+        <span class="acc-doc-number">${escHtml(est.id)}</span>
+        <span class="acc-status ${est.status}">${statusLabel}</span>
+      </div>
+      <div class="acc-subject">${escHtml(est.subject||'')}</div>
+      <div class="acc-meta">
+        ${est.clientName ? escHtml(est.clientName)+' · ' : ''}${est.date||''}
+        <span class="acc-amount" style="float:right">¥${parseInt(est.total||0).toLocaleString()}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openEstimateModal(id) {
+  const role = localStorage.getItem('ago_current_role') || '';
+  const isEdit = id !== null && id !== undefined && id !== '';
+  const data = isEdit ? lsEstimates().find(e => e.id === id) : null;
+
+  document.getElementById('est-modal-title').textContent = isEdit ? '見積書編集' : '見積書作成';
+  document.getElementById('est-edit-id').value = isEdit ? id : '';
+  document.getElementById('est-inp-no').value  = isEdit ? id : '(保存時に自動採番)';
+  document.getElementById('est-inp-subject').value   = isEdit ? (data.subject||'') : '';
+  document.getElementById('est-inp-client').value    = isEdit ? (data.clientName||'') : '';
+  document.getElementById('est-inp-date').value      = isEdit ? (data.date||'') : formatDate(new Date());
+  document.getElementById('est-inp-valid').value     = isEdit ? (data.validUntil||'') : '';
+  document.getElementById('est-inp-status').value    = isEdit ? (data.status||'draft') : 'draft';
+  document.getElementById('est-inp-notes').value     = isEdit ? (data.notes||'') : '';
+
+  // 案件プルダウン
+  const projSel = document.getElementById('est-inp-project');
+  projSel.innerHTML = '<option value="">-- なし --</option>';
+  schProjects.forEach(p => {
+    projSel.innerHTML += `<option value="${p.id}">${escHtml(p.name)}</option>`;
+  });
+  if (isEdit && data.projectId) projSel.value = data.projectId;
+
+  // 明細初期化
+  estItemCounter = 0;
+  document.getElementById('est-items-body').innerHTML = '';
+  if (isEdit && data.items && data.items.length > 0) {
+    data.items.forEach(item => addEstimateItem(item));
+  } else {
+    addEstimateItem();
+  }
+  calcEstimateTotals();
+
+  // 削除ボタン / 発注書変換ボタン
+  const deleteBtn  = document.getElementById('est-delete-btn');
+  const convertArea = document.getElementById('est-convert-po-area');
+  deleteBtn.style.display   = isEdit ? 'inline-block' : 'none';
+  convertArea.style.display = (isEdit && data && data.status === 'approved') ? 'block' : 'none';
+
+  // 権限制御: master/office のみ新規作成ボタン表示（閲覧は不可なのでそもそもタブに来ない）
+  const newBtn = document.getElementById('est-new-btn');
+  if (newBtn) {
+    newBtn.style.display = (role === 'master' || role === 'office') ? '' : 'none';
+  }
+
+  document.getElementById('estimate-modal').classList.add('show');
+}
+
+function closeEstimateModal() {
+  hideModal('estimate-modal');
+}
+
+function addEstimateItem(data) {
+  estItemCounter++;
+  const idx = estItemCounter;
+  const tbody = document.getElementById('est-items-body');
+  const tr = document.createElement('tr');
+  tr.className = 'est-item-row';
+  tr.id = 'est-item-'+idx;
+  const qty   = (data && data.qty   != null) ? data.qty   : 1;
+  const unit  = (data && data.unit) ? data.unit : '式';
+  const price = (data && data.unitPrice != null) ? data.unitPrice : 0;
+  const name  = (data && data.name) ? escHtml(data.name) : '';
+  const amt   = (data && data.amount != null) ? data.amount : 0;
+  tr.innerHTML = `
+    <td><input type="text" class="form-input est-iname" placeholder="品名" value="${name}" oninput="calcEstimateTotals()" style="font-size:13px;padding:5px 8px"></td>
+    <td><input type="number" class="form-input est-iqty" min="0.01" step="0.01" value="${qty}" oninput="calcEstimateRow(this);calcEstimateTotals()" style="font-size:13px;padding:5px 8px;text-align:right"></td>
+    <td><input type="text" class="form-input est-iunit" value="${escHtml(unit)}" style="font-size:13px;padding:5px 8px;width:56px"></td>
+    <td><input type="number" class="form-input est-iprice" min="0" step="1" value="${price}" oninput="calcEstimateRow(this);calcEstimateTotals()" style="font-size:13px;padding:5px 8px;text-align:right"></td>
+    <td class="num est-iamount" style="text-align:right;font-size:13px;padding:8px">¥${parseInt(amt).toLocaleString()}</td>
+    <td><button type="button" class="inv-item-remove" onclick="removeEstimateItem(${idx})">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function removeEstimateItem(idx) {
+  const row = document.getElementById('est-item-'+idx);
+  if (row) { row.remove(); calcEstimateTotals(); }
+}
+
+function calcEstimateRow(el) {
+  const row = el.closest('.est-item-row');
+  if (!row) return;
+  const qty   = parseFloat(row.querySelector('.est-iqty').value) || 0;
+  const price = parseInt(row.querySelector('.est-iprice').value) || 0;
+  const amt   = Math.round(qty * price);
+  row.querySelector('.est-iamount').textContent = '¥' + amt.toLocaleString();
+}
+
+function calcEstimateTotals() {
+  let subtotal = 0;
+  document.querySelectorAll('#est-items-body .est-item-row').forEach(row => {
+    const qty   = parseFloat(row.querySelector('.est-iqty').value) || 0;
+    const price = parseInt(row.querySelector('.est-iprice').value) || 0;
+    const amt   = Math.round(qty * price);
+    row.querySelector('.est-iamount').textContent = '¥' + amt.toLocaleString();
+    subtotal += amt;
+  });
+  const taxAmount = Math.round(subtotal * 0.1);
+  const total     = subtotal + taxAmount;
+  document.getElementById('est-inp-subtotal').value = subtotal;
+  document.getElementById('est-inp-tax').value      = taxAmount;
+  document.getElementById('est-inp-total').value    = total;
+}
+
+function convertEstimateToPO(estId) {
+  const est = lsEstimates().find(e => e.id === estId);
+  if (!est) { showToast('見積書が見つかりません'); return; }
+
+  // 見積書の明細を発注書の明細形式に変換
+  const poItems = est.items.map(i => ({
+    description: i.name,
+    qty: i.qty,
+    unit_price: i.unitPrice,
+  }));
+
+  // showInvoiceModal に発注書タイプで渡すための擬似データを生成
+  const prefill = {
+    doc_type:    'purchase_order',
+    subject:     est.subject,
+    client_name: est.clientName || '',
+    project_id:  est.projectId  || null,
+    issue_date:  formatDate(new Date()),
+    due_date:    '',
+    amount:      est.subtotal,
+    tax:         est.taxAmount,
+    total:       est.total,
+    status:      'draft',
+    notes:       est.notes || `見積書 ${est.id} より変換`,
+    items:       poItems,
+  };
+
+  closeEstimateModal();
+  showInvoiceModal('purchase_order', prefill);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── 案件別チャット（Phase 6-D）────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+// 指定案件のメッセージ配列を取得
+function lsChats(projectId) {
+  try {
+    const all = JSON.parse(localStorage.getItem(LS_CHATS) || '{}');
+    return Array.isArray(all[projectId]) ? all[projectId] : [];
+  } catch(e) { return []; }
+}
+
+// 指定案件のメッセージ配列を保存
+function _saveChats(projectId, msgs) {
+  try {
+    const all = JSON.parse(localStorage.getItem(LS_CHATS) || '{}');
+    all[projectId] = msgs;
+    localStorage.setItem(LS_CHATS, JSON.stringify(all));
+  } catch(e) {}
+}
+
+// テキストから @メンションを解析してハイライト用HTMLを返す
+function parseMentions(text) {
+  // @名前 パターンをスキャンして太字・色付きに置換
+  const escaped = escHtml(text);
+  return escaped.replace(/@([^\s@,。、]+)/g, function(match, name) {
+    return '<strong style="color:var(--primary)">@' + name + '</strong>';
+  });
+}
+
+// テキストから @メンション対象の userId 配列を抽出
+function extractMentionedUsers(text) {
+  const mentioned = [];
+  const nameToId = {};
+  Object.entries(USERS).forEach(([uid, uname]) => { nameToId[uname] = uid; });
+  const re = /@([^\s@,。、]+)/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const uid = nameToId[m[1]];
+    if (uid && !mentioned.includes(uid)) mentioned.push(uid);
+  }
+  return mentioned;
+}
+
+// メッセージを保存（@メンション解析・通知含む）
+function saveChatMessage(projectId, text) {
+  const userId   = localStorage.getItem('ago_current_user') || '';
+  const userName = USERS[userId] || userId;
+  const mentions = extractMentionedUsers(text);
+  const msgs = lsChats(projectId);
+  const msg = {
+    id:        new Date().toISOString() + '_' + Math.random().toString(36).slice(2),
+    text,
+    userId,
+    userName,
+    timestamp: new Date().toISOString(),
+    mentions,
+  };
+  msgs.push(msg);
+  _saveChats(projectId, msgs);
+
+  // @メンション相手へ ago_instructions に通知エントリを追加
+  if (mentions.length > 0) {
+    const proj = (lsLoad(LS_PROJECTS_PIPELINE) || []).find(p => p.id == projectId);
+    const projName = proj ? proj.name : '案件 ' + projectId;
+    const allIns = lsLoad('ago_instructions');
+    const now = lsNow();
+    mentions.forEach(toUid => {
+      allIns.push({
+        id:         lsNextId(allIns),
+        from_user:  userId,
+        to_user:    toUid,
+        subject:    '【チャット】' + projName + ' でメンションされました',
+        body:       text.substring(0, 200),
+        is_read:    false,
+        read_at:    null,
+        created_at: now,
+      });
+    });
+    lsSave('ago_instructions', allIns);
+  }
+  return msg;
+}
+
+// 現在ユーザーの既読を記録（各メッセージに readBy:[userId] を追加）
+function markChatRead(projectId) {
+  const userId = localStorage.getItem('ago_current_user') || '';
+  if (!userId) return;
+  const msgs = lsChats(projectId);
+  let changed = false;
+  msgs.forEach(msg => {
+    if (!Array.isArray(msg.readBy)) msg.readBy = [];
+    if (!msg.readBy.includes(userId)) { msg.readBy.push(userId); changed = true; }
+  });
+  if (changed) _saveChats(projectId, msgs);
+}
+
+// チャットUI全体をHTMLとして生成（renderPipelineDetail から呼ばれる）
+function renderChatView(projectId) {
+  const msgs = lsChats(projectId);
+  const userId = localStorage.getItem('ago_current_user') || '';
+
+  let msgsHtml = '';
+  if (msgs.length === 0) {
+    msgsHtml = `<div style="text-align:center;color:var(--muted);font-size:13px;padding:24px">${t('chatNoMessages')}</div>`;
+  } else {
+    msgs.forEach(msg => {
+      const isMine = msg.userId === userId;
+      const readBy = Array.isArray(msg.readBy) ? msg.readBy : [];
+      const readCount = readBy.length;
+      const timeStr = msg.timestamp ? msg.timestamp.slice(0, 16).replace('T', ' ') : '';
+      const bodyHtml = parseMentions(msg.text);
+      if (isMine) {
+        msgsHtml += `
+        <div style="display:flex;flex-direction:column;align-items:flex-end;margin-bottom:12px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">${escHtml(msg.userName)} · ${timeStr}</div>
+          <div style="background:#1a73e8;color:#fff;padding:8px 12px;border-radius:12px 12px 2px 12px;max-width:75%;font-size:13px;line-height:1.5;word-break:break-word">${bodyHtml}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${t('chatReadBy')} ${readCount}</div>
+        </div>`;
+      } else {
+        msgsHtml += `
+        <div style="display:flex;flex-direction:column;align-items:flex-start;margin-bottom:12px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">${escHtml(msg.userName)} · ${timeStr}</div>
+          <div style="background:#f1f3f4;color:#202124;padding:8px 12px;border-radius:12px 12px 12px 2px;max-width:75%;font-size:13px;line-height:1.5;word-break:break-word">${bodyHtml}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${t('chatReadBy')} ${readCount}</div>
+        </div>`;
+      }
+    });
+  }
+
+  // スタッフ一覧（@ボタン用）
+  const staffOpts = Object.entries(USERS).map(([uid, name]) => `<option value="${uid}">${escHtml(name)}</option>`).join('');
+
+  return `
+  <div style="display:flex;flex-direction:column;height:100%">
+    <!-- メッセージ一覧エリア -->
+    <div id="chat-messages-${projectId}" style="min-height:300px;max-height:500px;overflow-y:auto;padding:12px;background:var(--card);border-radius:8px;margin-bottom:10px;border:1px solid var(--border)">
+      ${msgsHtml}
+    </div>
+    <!-- メンションドロップダウン -->
+    <div id="mention-dropdown-${projectId}" style="display:none;position:relative;margin-bottom:4px">
+      <div style="position:absolute;bottom:0;left:0;background:#fff;border:1px solid #ddd;border-radius:4px;z-index:100;min-width:160px;box-shadow:0 2px 8px rgba(0,0,0,.15)" id="mention-list-${projectId}"></div>
+    </div>
+    <!-- 送信エリア -->
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <button class="btn-secondary" style="padding:8px 10px;font-size:14px;flex-shrink:0;white-space:nowrap" onclick="showMentionPicker(${projectId})" title="${t('chatMention')}">@</button>
+      <select id="mention-picker-${projectId}" style="display:none;padding:6px 8px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px" onchange="insertMentionFromPicker(${projectId})">
+        <option value="">-- スタッフを選択 --</option>
+        ${staffOpts}
+      </select>
+      <textarea id="chat-input-${projectId}" placeholder="${t('chatPlaceholder')}" rows="2" style="flex:1;padding:8px 12px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:14px;resize:none;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'" oninput="showMentionDropdown(this,${projectId})"></textarea>
+      <button class="btn-primary" style="padding:8px 16px;font-size:14px;flex-shrink:0" onclick="sendChatMessage(${projectId})">${t('chatSend')}</button>
+    </div>
+  </div>`;
+}
+
+// 送信ボタン押下時の処理
+function sendChatMessage(projectId) {
+  const input = document.getElementById('chat-input-' + projectId);
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) { showToast('メッセージを入力してください'); return; }
+  saveChatMessage(projectId, text);
+  input.value = '';
+  // メッセージ一覧を再描画
+  const chatArea = document.getElementById('chat-messages-' + projectId);
+  if (chatArea) {
+    const msgs = lsChats(projectId);
+    const userId = localStorage.getItem('ago_current_user') || '';
+    let msgsHtml = '';
+    msgs.forEach(msg => {
+      const isMine = msg.userId === userId;
+      const readBy = Array.isArray(msg.readBy) ? msg.readBy : [];
+      const readCount = readBy.length;
+      const timeStr = msg.timestamp ? msg.timestamp.slice(0, 16).replace('T', ' ') : '';
+      const bodyHtml = parseMentions(msg.text);
+      if (isMine) {
+        msgsHtml += `
+        <div style="display:flex;flex-direction:column;align-items:flex-end;margin-bottom:12px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">${escHtml(msg.userName)} · ${timeStr}</div>
+          <div style="background:#1a73e8;color:#fff;padding:8px 12px;border-radius:12px 12px 2px 12px;max-width:75%;font-size:13px;line-height:1.5;word-break:break-word">${bodyHtml}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${t('chatReadBy')} ${readCount}</div>
+        </div>`;
+      } else {
+        msgsHtml += `
+        <div style="display:flex;flex-direction:column;align-items:flex-start;margin-bottom:12px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">${escHtml(msg.userName)} · ${timeStr}</div>
+          <div style="background:#f1f3f4;color:#202124;padding:8px 12px;border-radius:12px 12px 12px 2px;max-width:75%;font-size:13px;line-height:1.5;word-break:break-word">${bodyHtml}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${t('chatReadBy')} ${readCount}</div>
+        </div>`;
+      }
+    });
+    chatArea.innerHTML = msgsHtml || `<div style="text-align:center;color:var(--muted);font-size:13px;padding:24px">${t('chatNoMessages')}</div>`;
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+  markChatRead(projectId);
+}
+
+// メッセージ一覧を再描画（既読更新も行う）
+function renderChatMessages(projectId) {
+  const chatArea = document.getElementById('chat-messages-' + projectId);
+  if (!chatArea) return;
+  markChatRead(projectId);
+  const msgs = lsChats(projectId);
+  const userId = localStorage.getItem('ago_current_user') || '';
+  let msgsHtml = '';
+  if (msgs.length === 0) {
+    msgsHtml = `<div style="text-align:center;color:var(--muted);font-size:13px;padding:24px">${t('chatNoMessages')}</div>`;
+  } else {
+    msgs.forEach(msg => {
+      const isMine = msg.userId === userId;
+      const readBy = Array.isArray(msg.readBy) ? msg.readBy : [];
+      const readCount = readBy.length;
+      const timeStr = msg.timestamp ? msg.timestamp.slice(0, 16).replace('T', ' ') : '';
+      const bodyHtml = parseMentions(msg.text);
+      if (isMine) {
+        msgsHtml += `
+        <div style="display:flex;flex-direction:column;align-items:flex-end;margin-bottom:12px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">${escHtml(msg.userName)} · ${timeStr}</div>
+          <div style="background:#1a73e8;color:#fff;padding:8px 12px;border-radius:12px 12px 2px 12px;max-width:75%;font-size:13px;line-height:1.5;word-break:break-word">${bodyHtml}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${t('chatReadBy')} ${readCount}</div>
+        </div>`;
+      } else {
+        msgsHtml += `
+        <div style="display:flex;flex-direction:column;align-items:flex-start;margin-bottom:12px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">${escHtml(msg.userName)} · ${timeStr}</div>
+          <div style="background:#f1f3f4;color:#202124;padding:8px 12px;border-radius:12px 12px 12px 2px;max-width:75%;font-size:13px;line-height:1.5;word-break:break-word">${bodyHtml}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${t('chatReadBy')} ${readCount}</div>
+        </div>`;
+      }
+    });
+  }
+  chatArea.innerHTML = msgsHtml;
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+// @入力時のドロップダウン表示（テキストエリアの oninput で呼ばれる）
+function showMentionDropdown(input, projectId) {
+  const val = input.value;
+  const curPos = input.selectionStart;
+  // カーソル直前の @ から単語を抽出
+  const before = val.slice(0, curPos);
+  const match = before.match(/@([^\s@]*)$/);
+  const dropWrap = document.getElementById('mention-dropdown-' + projectId);
+  const dropList = document.getElementById('mention-list-' + projectId);
+  if (!dropWrap || !dropList) return;
+  if (!match) { dropWrap.style.display = 'none'; return; }
+  const query = match[1].toLowerCase();
+  const filtered = Object.entries(USERS).filter(([uid, name]) => name.toLowerCase().includes(query) || uid.toLowerCase().includes(query));
+  if (filtered.length === 0) { dropWrap.style.display = 'none'; return; }
+  dropList.innerHTML = filtered.map(([uid, name]) =>
+    `<div style="padding:8px 12px;cursor:pointer;font-size:13px;color:#202124;white-space:nowrap" onmousedown="insertMention('${uid}','${escHtml(name)}',${projectId})">${escHtml(name)}</div>`
+  ).join('');
+  dropWrap.style.display = 'block';
+}
+
+// @メンションをテキストに挿入
+function insertMention(userId, name, projectId) {
+  const input = document.getElementById('chat-input-' + projectId);
+  if (!input) return;
+  const val = input.value;
+  const curPos = input.selectionStart;
+  const before = val.slice(0, curPos);
+  const after  = val.slice(curPos);
+  const replaced = before.replace(/@([^\s@]*)$/, '@' + name + ' ');
+  input.value = replaced + after;
+  input.focus();
+  const newPos = replaced.length;
+  input.setSelectionRange(newPos, newPos);
+  const dropWrap = document.getElementById('mention-dropdown-' + projectId);
+  if (dropWrap) dropWrap.style.display = 'none';
+}
+
+// @ボタン押下時のピッカー表示（タッチUIフォールバック）
+function showMentionPicker(projectId) {
+  const picker = document.getElementById('mention-picker-' + projectId);
+  if (!picker) return;
+  picker.style.display = picker.style.display === 'none' ? '' : 'none';
+}
+
+// ピッカーからメンション挿入
+function insertMentionFromPicker(projectId) {
+  const picker = document.getElementById('mention-picker-' + projectId);
+  if (!picker || !picker.value) return;
+  const uid  = picker.value;
+  const name = USERS[uid] || uid;
+  const input = document.getElementById('chat-input-' + projectId);
+  if (input) {
+    const pos  = input.selectionStart;
+    const val  = input.value;
+    input.value = val.slice(0, pos) + '@' + name + ' ' + val.slice(pos);
+    const newPos = pos + name.length + 2;
+    input.setSelectionRange(newPos, newPos);
+    input.focus();
+  }
+  picker.value = '';
+  picker.style.display = 'none';
+}
+
+// ── Phase 6-E: PDF出力 ─────────────────────────────────────────
+
+function _pdfCheckLib() {
+  if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+    showToast('PDFライブラリ読み込み中です。しばらくしてから再試行してください。');
+    return false;
+  }
+  return true;
+}
+
+function _pdfCompanyName() {
+  return (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.companyName) ? APP_CONFIG.companyName : 'AGO グループ';
+}
+
+function _pdfFmtMoney(v) {
+  return '¥' + parseInt(v || 0).toLocaleString();
+}
+
+// ── 請求書 PDF出力 ─────────────────────────────────────────────
+function exportInvoicePDF() {
+  if (!_pdfCheckLib()) return;
+  const editId = document.getElementById('inv-edit-id').value;
+  if (!editId) { showToast('先に保存してからPDF出力してください'); return; }
+  const docType = document.getElementById('inv-doc-type').value || 'invoice';
+  const lsKey = docType === 'purchase_order' ? LS_PO : LS_INVOICES;
+  const items = lsLoad(lsKey);
+  const inv = items.find(i => String(i.id) === String(editId));
+  if (!inv) { showToast('データが見つかりません'); return; }
+
+  showToast(t('pdfGenerating'));
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const margin = 15;
+  const pageW = 210;
+  let y = margin;
+
+  const docLabel = docType === 'purchase_order' ? '発注書' : '請求書';
+  const company = _pdfCompanyName();
+
+  // タイトル
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text(docLabel, pageW / 2, y + 8, { align: 'center' });
+  y += 16;
+
+  // 書類番号・日付
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('No: ' + (inv.doc_number || String(inv.id)), pageW - margin, y, { align: 'right' });
+  y += 5;
+  doc.text((docLabel === '発注書' ? '発注日' : '発行日') + ': ' + (inv.issue_date || ''), pageW - margin, y, { align: 'right' });
+  if (inv.due_date) { y += 5; doc.text('支払期限: ' + inv.due_date, pageW - margin, y, { align: 'right' }); }
+  y += 8;
+
+  // 宛先・発行者
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text((inv.client_name || '（取引先未設定）') + ' 御中', margin, y);
+  y += 6;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('発行: ' + company, margin, y);
+  y += 8;
+
+  // 件名
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('件名: ' + (inv.subject || ''), margin, y);
+  y += 10;
+
+  // 明細テーブル
+  const tableBody = [];
+  if (inv.items && inv.items.length > 0) {
+    inv.items.forEach(item => {
+      const qty = parseInt(item.qty) || 1;
+      const price = parseInt(item.unit_price) || 0;
+      tableBody.push([
+        item.description || '',
+        String(qty),
+        _pdfFmtMoney(price),
+        _pdfFmtMoney(qty * price)
+      ]);
+    });
+  } else {
+    tableBody.push(['（明細なし）', '', '', '']);
+  }
+
+  doc.autoTable({
+    startY: y,
+    head: [['品名・内容', '数量', '単価', '金額']],
+    body: tableBody,
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
+    columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 20, halign: 'right' }, 2: { cellWidth: 32, halign: 'right' }, 3: { cellWidth: 32, halign: 'right' } }
+  });
+  y = doc.lastAutoTable.finalY + 6;
+
+  // 小計・税・合計
+  const subtotal = parseInt(inv.amount || 0);
+  const tax = parseInt(inv.tax || 0);
+  const total = parseInt(inv.total || subtotal + tax);
+  const colX = pageW - margin - 80;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('小計:', colX, y); doc.text(_pdfFmtMoney(subtotal), pageW - margin, y, { align: 'right' }); y += 6;
+  doc.text('消費税:', colX, y); doc.text(_pdfFmtMoney(tax), pageW - margin, y, { align: 'right' }); y += 6;
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('合計:', colX, y); doc.text(_pdfFmtMoney(total), pageW - margin, y, { align: 'right' }); y += 10;
+
+  // 備考
+  if (inv.notes) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('備考:', margin, y); y += 5;
+    const lines = doc.splitTextToSize(inv.notes, pageW - margin * 2);
+    doc.text(lines, margin, y);
+  }
+
+  doc.save('invoice_' + inv.id + '.pdf');
+  showToast('PDFを保存しました');
+}
+
+// ── 見積書 PDF出力 ─────────────────────────────────────────────
+function exportEstimatePDF() {
+  if (!_pdfCheckLib()) return;
+  const editId = document.getElementById('est-edit-id').value;
+  if (!editId) { showToast('先に保存してからPDF出力してください'); return; }
+  const items = lsLoad(LS_ESTIMATES);
+  const est = items.find(i => String(i.id) === String(editId));
+  if (!est) { showToast('データが見つかりません'); return; }
+
+  showToast(t('pdfGenerating'));
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const margin = 15;
+  const pageW = 210;
+  let y = margin;
+  const company = _pdfCompanyName();
+
+  // タイトル
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text('見積書', pageW / 2, y + 8, { align: 'center' });
+  y += 16;
+
+  // 書類番号・日付
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('No: ' + (est.id || ''), pageW - margin, y, { align: 'right' });
+  y += 5;
+  doc.text('見積日: ' + (est.estimate_date || ''), pageW - margin, y, { align: 'right' });
+  if (est.valid_until) { y += 5; doc.text('有効期限: ' + est.valid_until, pageW - margin, y, { align: 'right' }); }
+  y += 8;
+
+  // 宛先・発行者
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text((est.client_name || '（顧客未設定）') + ' 御中', margin, y);
+  y += 6;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('発行: ' + company, margin, y);
+  y += 8;
+
+  // 件名
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('件名: ' + (est.subject || ''), margin, y);
+  y += 10;
+
+  // 明細テーブル
+  const tableBody = [];
+  if (est.items && est.items.length > 0) {
+    est.items.forEach(item => {
+      const qty = parseFloat(item.qty) || 1;
+      const price = parseInt(item.unit_price) || 0;
+      tableBody.push([
+        item.name || item.description || '',
+        String(qty),
+        item.unit || '式',
+        _pdfFmtMoney(price),
+        _pdfFmtMoney(qty * price)
+      ]);
+    });
+  } else {
+    tableBody.push(['（明細なし）', '', '', '', '']);
+  }
+
+  doc.autoTable({
+    startY: y,
+    head: [['品名', '数量', '単位', '単価', '金額']],
+    body: tableBody,
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
+    columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 18, halign: 'right' }, 2: { cellWidth: 16 }, 3: { cellWidth: 30, halign: 'right' }, 4: { cellWidth: 30, halign: 'right' } }
+  });
+  y = doc.lastAutoTable.finalY + 6;
+
+  // 小計・税・合計
+  const subtotal = parseInt(est.subtotal || est.amount || 0);
+  const tax = parseInt(est.tax || Math.floor(subtotal * 0.1));
+  const total = parseInt(est.total || subtotal + tax);
+  const colX = pageW - margin - 80;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('小計:', colX, y); doc.text(_pdfFmtMoney(subtotal), pageW - margin, y, { align: 'right' }); y += 6;
+  doc.text('消費税(10%):', colX, y); doc.text(_pdfFmtMoney(tax), pageW - margin, y, { align: 'right' }); y += 6;
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('合計:', colX, y); doc.text(_pdfFmtMoney(total), pageW - margin, y, { align: 'right' }); y += 10;
+
+  // 備考
+  if (est.notes) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('備考:', margin, y); y += 5;
+    const lines = doc.splitTextToSize(est.notes, pageW - margin * 2);
+    doc.text(lines, margin, y);
+  }
+
+  doc.save('estimate_' + est.id + '.pdf');
+  showToast('PDFを保存しました');
+}
+
+// ── 工事日報 PDF出力 ───────────────────────────────────────────
+function exportReportPDF(reportId) {
+  if (!_pdfCheckLib()) return;
+  const reports = lsLoad(LS_PROJECT_REPORTS);
+  const r = reports.find(rp => String(rp.id) === String(reportId));
+  if (!r) { showToast('日報データが見つかりません'); return; }
+
+  const projects = lsLoad(LS_PROJECTS_PIPELINE);
+  const proj = projects.find(p => p.id == r.project_id);
+  const projName = proj ? proj.name : '（案件不明）';
+  const uname = USERS[r.user_id] || r.user_id || '不明';
+  const company = _pdfCompanyName();
+
+  showToast(t('pdfGenerating'));
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const margin = 15;
+  const pageW = 210;
+  let y = margin;
+
+  // タイトル
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('工事日報', pageW / 2, y + 8, { align: 'center' });
+  y += 18;
+
+  // 発行元
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(company, pageW - margin, y, { align: 'right' });
+  y += 8;
+
+  // 基本情報
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  const infoRows = [
+    ['案件名', projName],
+    ['日付', (r.report_date || r.created_at || '').substring(0, 10)],
+    ['記入者', uname]
+  ];
+  infoRows.forEach(([label, val]) => {
+    doc.setFont('helvetica', 'bold');
+    doc.text(label + ':', margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(val, margin + 24, y);
+    y += 7;
+  });
+  y += 4;
+
+  // 区切り線
+  doc.setDrawColor(180, 180, 180);
+  doc.line(margin, y, pageW - margin, y);
+  y += 6;
+
+  // 日報本文
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('日報内容:', margin, y);
+  y += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  const bodyLines = doc.splitTextToSize(r.body || '（本文なし）', pageW - margin * 2);
+  doc.text(bodyLines, margin, y);
+
+  doc.save('report_' + reportId + '.pdf');
+  showToast('PDFを保存しました');
+}
+
+// ── チェックリスト PDF出力 ─────────────────────────────────────
+function exportChecklistPDF(projectId) {
+  if (!_pdfCheckLib()) return;
+  const checklists = lsLoad(LS_PROJECT_CHECKLISTS).filter(c => c.project_id == projectId);
+  const projects = lsLoad(LS_PROJECTS_PIPELINE);
+  const proj = projects.find(p => p.id == projectId);
+  const projName = proj ? proj.name : '（案件不明）';
+  const company = _pdfCompanyName();
+  const today = new Date().toISOString().substring(0, 10);
+
+  showToast(t('pdfGenerating'));
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const margin = 15;
+  const pageW = 210;
+  let y = margin;
+
+  // タイトル
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('工事チェックリスト', pageW / 2, y + 8, { align: 'center' });
+  y += 18;
+
+  // 発行元・日付
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(company, pageW - margin, y, { align: 'right' });
+  y += 5;
+  doc.text('出力日: ' + today, pageW - margin, y, { align: 'right' });
+  y += 8;
+
+  // 案件名
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('案件名: ' + projName, margin, y);
+  y += 10;
+
+  // チェックリストテーブル
+  const doneCount = checklists.filter(c => c.done).length;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('進捗: ' + doneCount + ' / ' + checklists.length + ' 完了', margin, y);
+  y += 6;
+
+  if (checklists.length === 0) {
+    doc.text('チェックリストはありません', margin, y);
+  } else {
+    const tableBody = checklists.map(item => [
+      item.label || '',
+      item.category || '',
+      item.done ? '完了' : '未完了',
+      item.done ? (item.done_at || '').substring(0, 10) : ''
+    ]);
+
+    doc.autoTable({
+      startY: y,
+      head: [['項目名', 'カテゴリ', '状態', '完了日']],
+      body: tableBody,
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
+      columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 30 }, 2: { cellWidth: 22 }, 3: { cellWidth: 28 } },
+      bodyStyles: {},
+      didParseCell: function(data) {
+        if (data.column.index === 2 && data.cell.raw === '完了') {
+          data.cell.styles.textColor = [16, 185, 129];
+        }
+      }
+    });
+  }
+
+  doc.save('checklist_' + projectId + '.pdf');
+  showToast('PDFを保存しました');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Phase 6-G: 電子黒板 ──────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+let _bbProjectId = null;
+let _bbPhotoId = null;
+let _bbPhotoDataUrl = null; // 元の写真の dataUrl
+
+// 電子黒板モーダルを開く（写真データを受け取る）
+async function openBlackboardModal(projectId, photoId) {
+  _bbProjectId = projectId;
+  _bbPhotoId = photoId;
+  _bbPhotoDataUrl = null;
+
+  // IndexedDB から写真データを取得
+  try {
+    const photos = await loadPhotosIDB(projectId);
+    const ph = photos.find(p => String(p.id) === String(photoId));
+    if (!ph) { showToast('写真データが見つかりません'); return; }
+    _bbPhotoDataUrl = ph.dataUrl || ph.data || '';
+  } catch(e) {
+    showToast('写真の読み込みに失敗しました: ' + (e.message || e));
+    return;
+  }
+
+  // フォームの初期値をセット
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  document.getElementById('bb-date').value = yyyy + '-' + mm + '-' + dd;
+
+  // 撮影者: 現在ログインユーザーをデフォルトに
+  const workerSel = document.getElementById('bb-worker');
+  workerSel.innerHTML = '';
+  const users = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users : {};
+  const currentUid = localStorage.getItem('ago_current_user') || '';
+  Object.entries(users).forEach(([uid, u]) => {
+    const opt = document.createElement('option');
+    opt.value = u.name;
+    opt.textContent = u.name;
+    if (uid === currentUid) opt.selected = true;
+    workerSel.appendChild(opt);
+  });
+  if (workerSel.options.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '担当者'; opt.textContent = '担当者';
+    workerSel.appendChild(opt);
+  }
+
+  // 多言語ラベルを更新
+  document.getElementById('bb-modal-title').textContent = t('blackboard');
+  document.getElementById('bb-lbl-koushu').textContent = t('bbKoushu');
+  document.getElementById('bb-lbl-koujimei').textContent = t('bbKoujimei');
+  document.getElementById('bb-lbl-shisekibasho').textContent = t('bbShisekibasho');
+  document.getElementById('bb-lbl-dankai').textContent = t('bbDankai');
+  document.getElementById('bb-lbl-date').textContent = t('bbDate');
+  document.getElementById('bb-lbl-worker').textContent = t('bbWorker');
+  document.getElementById('bb-lbl-position').textContent = t('bbPosition');
+  document.getElementById('bb-btn-compose').textContent = t('bbCompose');
+  document.getElementById('bb-opt-before').textContent = t('bbStageBeforeStart');
+  document.getElementById('bb-opt-during').textContent = t('bbStageDuring');
+  document.getElementById('bb-opt-complete').textContent = t('bbStageComplete');
+  document.getElementById('bb-opt-bl').textContent = t('bbPosBottomLeft');
+  document.getElementById('bb-opt-br').textContent = t('bbPosBottomRight');
+  document.getElementById('bb-opt-tl').textContent = t('bbPosTopLeft');
+  document.getElementById('bb-opt-tr').textContent = t('bbPosTopRight');
+
+  // モーダルを表示
+  document.getElementById('blackboard-modal').classList.add('show');
+
+  // プレビューを初期描画
+  updateBlackboardPreview();
+}
+
+// 黒板フォームの変更時にプレビューを更新
+function updateBlackboardPreview() {
+  if (!_bbPhotoDataUrl) return;
+  const bbData = _bbGetFormData();
+  const canvas = document.getElementById('bb-preview-canvas');
+  compositeBlackboard(_bbPhotoDataUrl, bbData).then(function(dataUrl) {
+    const img = new Image();
+    img.onload = function() {
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+    };
+    img.src = dataUrl;
+  }).catch(function(e) {
+    console.warn('[BB] preview error:', e);
+  });
+}
+
+// フォームデータをまとめて返す
+function _bbGetFormData() {
+  const pos = document.querySelector('input[name="bb-pos"]:checked');
+  return {
+    type:     document.getElementById('bb-koushu').value,
+    name:     document.getElementById('bb-koujimei').value,
+    location: document.getElementById('bb-shisekibasho').value,
+    stage:    document.getElementById('bb-dankai').value,
+    date:     document.getElementById('bb-date').value,
+    worker:   document.getElementById('bb-worker').value,
+    position: pos ? pos.value : 'bottom-left',
+  };
+}
+
+// Canvas に写真+黒板を合成して dataURL を返す（Promise）
+// bbData = { type, name, location, stage, date, worker, position }
+function compositeBlackboard(photoDataUrl, bbData) {
+  return new Promise(function(resolve, reject) {
+    const img = new Image();
+    img.onload = function() {
+      const W = img.naturalWidth;
+      const H = img.naturalHeight;
+
+      const cv = document.createElement('canvas');
+      cv.width = W;
+      cv.height = H;
+      const ctx = cv.getContext('2d');
+
+      // 背景（元写真）を描画
+      ctx.drawImage(img, 0, 0, W, H);
+
+      // 黒板のサイズ計算: 写真幅の35%
+      const bbW = Math.round(W * 0.35);
+      // フォントサイズを画像幅に応じて動的に決定
+      const fontSize = Math.max(10, Math.round(bbW * 0.072));
+      const lineH = Math.round(fontSize * 1.6);
+      const padX = Math.round(fontSize * 0.7);
+      const padY = Math.round(fontSize * 0.6);
+
+      // 会社名
+      const company = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.companyName)
+        ? APP_CONFIG.companyName : 'AGO グループ';
+
+      // 黒板の行データ
+      const rows = [
+        { key: bbData.type || '—',     label: t('bbKoushu')      },
+        { key: bbData.name || '—',     label: t('bbKoujimei')    },
+        { key: bbData.location || '—', label: t('bbShisekibasho') },
+        { key: bbData.stage || '—',    label: t('bbDankai')      },
+        { key: bbData.date || '—',     label: t('bbDate')        },
+        { key: bbData.worker || '—',   label: t('bbWorker')      },
+      ];
+
+      // 黒板の高さを計算
+      const titleH = lineH + padY;
+      const divH   = 2;
+      const bodyH  = rows.length * lineH + padY * 2;
+      const bbH    = titleH + divH + bodyH;
+
+      // 位置計算
+      const margin = Math.round(W * 0.015);
+      let bbX, bbY;
+      switch (bbData.position) {
+        case 'bottom-right': bbX = W - bbW - margin; bbY = H - bbH - margin; break;
+        case 'top-left':     bbX = margin;            bbY = margin;           break;
+        case 'top-right':    bbX = W - bbW - margin;  bbY = margin;           break;
+        default:             bbX = margin;            bbY = H - bbH - margin; // bottom-left
+      }
+
+      // 黒板背景（濃緑）
+      ctx.save();
+      ctx.fillStyle = '#1a5c2a';
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = Math.max(1, Math.round(W * 0.002));
+      const r = Math.round(fontSize * 0.4);
+      _bbRoundRect(ctx, bbX, bbY, bbW, bbH, r);
+      ctx.fill();
+      ctx.stroke();
+
+      // フォント設定
+      ctx.font = 'bold ' + fontSize + 'px monospace,"Courier New",sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ffffff';
+
+      // タイトル（会社名）
+      const titleY = bbY + padY / 2 + lineH / 2;
+      const titleText = _bbTruncate(ctx, company, bbW - padX * 2);
+      ctx.textAlign = 'center';
+      ctx.fillText(titleText, bbX + bbW / 2, titleY);
+
+      // 区切り線
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = Math.max(1, Math.round(W * 0.001));
+      ctx.beginPath();
+      ctx.moveTo(bbX + padX / 2, bbY + titleH);
+      ctx.lineTo(bbX + bbW - padX / 2, bbY + titleH);
+      ctx.stroke();
+
+      // 各行（左寄せ）
+      ctx.textAlign = 'left';
+      ctx.font = fontSize + 'px monospace,"Courier New",sans-serif';
+      rows.forEach(function(row, i) {
+        const ry = bbY + titleH + divH + padY + lineH * i + lineH / 2;
+        const labelText = row.label + ': ';
+        const valueX = bbX + padX + ctx.measureText(labelText).width;
+        // ラベルをやや薄めに
+        ctx.fillStyle = 'rgba(255,255,255,0.75)';
+        ctx.fillText(labelText, bbX + padX, ry);
+        ctx.fillStyle = '#ffffff';
+        const maxValueW = bbW - padX - ctx.measureText(labelText).width - padX;
+        ctx.fillText(_bbTruncate(ctx, row.key, maxValueW), valueX, ry);
+      });
+
+      ctx.restore();
+
+      resolve(cv.toDataURL('image/jpeg', 0.92));
+    };
+    img.onerror = function() { reject(new Error('画像読み込み失敗')); };
+    img.src = photoDataUrl;
+  });
+}
+
+// 角丸矩形ヘルパー
+function _bbRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// テキストを maxWidth に収まるよう省略
+function _bbTruncate(ctx, str, maxWidth) {
+  if (ctx.measureText(str).width <= maxWidth) return str;
+  let s = str;
+  while (s.length > 1 && ctx.measureText(s + '…').width > maxWidth) {
+    s = s.slice(0, -1);
+  }
+  return s + '…';
+}
+
+// 合成済み写真を保存（IndexedDB経由）
+async function saveBlackboardPhoto(projectId, photoId) {
+  const pid = projectId != null ? projectId : _bbProjectId;
+  const phid = photoId != null ? photoId : _bbPhotoId;
+  if (!_bbPhotoDataUrl) { showToast('写真データがありません'); return; }
+
+  const bbData = _bbGetFormData();
+
+  try {
+    const composedDataUrl = await compositeBlackboard(_bbPhotoDataUrl, bbData);
+
+    // 元ファイル名を取得して新しい名前を生成
+    const photos = await loadPhotosIDB(pid);
+    const origPhoto = photos.find(p => String(p.id) === String(phid));
+    const origName = origPhoto ? (origPhoto.note || origPhoto.name || origPhoto.memo || 'photo') : 'photo';
+    const newName = '[黒板]_' + origName;
+
+    const photoData = {
+      dataUrl: composedDataUrl,
+      data: composedDataUrl,
+      note: newName,
+      name: newName,
+      memo: newName,
+      created_at: lsNow(),
+      uploadedAt: lsNow(),
+    };
+
+    await savePhotoIDB(pid, photoData);
+    showToast('✅ 黒板合成写真を保存しました');
+    closeBlackboardModal();
+    renderPhotosTab(pid);
+  } catch(e) {
+    showToast('保存に失敗しました: ' + (e.message || e));
+  }
+}
+
+// 電子黒板モーダルを閉じる
+function closeBlackboardModal() {
+  document.getElementById('blackboard-modal').classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── Phase 6-H 協力会社・職人管理 ──────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+// 協力会社フィルタ状態
+let _ctrStatusFilter = 'all';
+let _ctrCategoryFilter = '';
+
+// 全協力会社取得
+function lsContractors() {
+  return lsLoad(LS_CONTRACTORS);
+}
+
+// 協力会社保存（新規/更新）
+function saveContractor(data) {
+  const all = lsContractors();
+  const now = lsNow();
+  if (data.id) {
+    const idx = all.findIndex(c => c.id === data.id);
+    if (idx !== -1) {
+      all[idx] = Object.assign(all[idx], data, {updatedAt: now});
+    }
+  } else {
+    const newItem = Object.assign({}, data, {
+      id: 'ctr_' + Date.now(),
+      createdAt: now,
+      updatedAt: now,
+      createdBy: localStorage.getItem('ago_current_user') || ''
+    });
+    all.push(newItem);
+  }
+  lsSave(LS_CONTRACTORS, all);
+}
+
+// 協力会社削除
+function deleteContractor(id) {
+  if (!requireMasterOrOffice()) return;
+  if (!confirm('この協力会社を削除しますか？この操作は取り消せません。')) return;
+  const all = lsContractors().filter(c => c.id !== id);
+  lsSave(LS_CONTRACTORS, all);
+  // 案件から紐づきも削除
+  const projects = lsLoad(LS_PROJECTS_PIPELINE);
+  projects.forEach(p => {
+    if (p.contractors && p.contractors.includes(id)) {
+      p.contractors = p.contractors.filter(cid => cid !== id);
+    }
+  });
+  lsSave(LS_PROJECTS_PIPELINE, projects);
+  showToast('協力会社を削除しました');
+  renderContractorList(_ctrStatusFilter, _ctrCategoryFilter);
+}
+
+// 評価星HTML生成
+function renderRatingStars(rating, interactive, contractorId) {
+  let html = '';
+  for (let i = 1; i <= 5; i++) {
+    const filled = i <= rating;
+    if (interactive) {
+      html += `<span style="cursor:pointer;font-size:18px;color:${filled ? '#f59e0b' : 'var(--border)'}" onclick="setContractorRating(${contractorId ? "'" + contractorId + "'" : 'null'}, ${i})">${filled ? '★' : '☆'}</span>`;
+    } else {
+      html += `<span style="font-size:14px;color:${filled ? '#f59e0b' : 'var(--border)'}">${filled ? '★' : '☆'}</span>`;
+    }
+  }
+  return html;
+}
+
+// モーダル内評価星のリアルタイム更新
+function setContractorRating(id, val) {
+  document.getElementById('ctr-rating').value = val;
+  const starsEl = document.getElementById('ctr-rating-stars');
+  if (starsEl) {
+    let html = '';
+    for (let i = 1; i <= 5; i++) {
+      const filled = i <= val;
+      html += `<span style="cursor:pointer;font-size:24px;color:${filled ? '#f59e0b' : 'var(--border)'}" onclick="setContractorRating(null, ${i})">${filled ? '★' : '☆'}</span>`;
+    }
+    starsEl.innerHTML = html;
+  }
+}
+
+// フィルタセット
+function setContractorFilter(statusFilter, categoryFilter) {
+  if (statusFilter !== '') {
+    _ctrStatusFilter = statusFilter;
+    ['all','active','inactive'].forEach(k => {
+      const el = document.getElementById('ctr-filter-' + k);
+      if (el) el.classList.toggle('active', k === statusFilter);
+    });
+  }
+  if (categoryFilter !== '') {
+    _ctrCategoryFilter = (categoryFilter === 'all') ? '' : categoryFilter;
+    ['all','signage','interior','electric','paint','other'].forEach(k => {
+      const el = document.getElementById('ctr-cat-' + k);
+      if (el) el.classList.toggle('active', k === (categoryFilter === 'all' ? 'all' : {
+        '看板':'signage','内装':'interior','電気':'electric','塗装':'paint','その他':'other'
+      }[categoryFilter] || k));
+    });
+  }
+  renderContractorList(_ctrStatusFilter, _ctrCategoryFilter);
+}
+
+// マスターパネル内一覧描画
+function renderContractorList(statusFilter, categoryFilter) {
+  const container = document.getElementById('master-contractor-list');
+  if (!container) return;
+  let list = lsContractors();
+  if (statusFilter && statusFilter !== 'all') {
+    list = list.filter(c => c.status === statusFilter);
+  }
+  if (categoryFilter) {
+    list = list.filter(c => Array.isArray(c.category) && c.category.includes(categoryFilter));
+  }
+  if (list.length === 0) {
+    container.innerHTML = `<div style="font-size:13px;color:var(--muted);padding:12px 0;text-align:center">${t('noContractors')}</div>`;
+    return;
+  }
+  let html = '';
+  list.forEach(c => {
+    const cats = Array.isArray(c.category) ? c.category.join('・') : '';
+    const statusColor = c.status === 'active' ? 'var(--green)' : 'var(--muted)';
+    const statusLabel = c.status === 'active' ? t('contractorActive') : t('contractorInactive');
+    const typeLabel = c.type === 'company' ? t('contractorCompany') : t('contractorIndividual');
+    html += `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <span style="font-weight:700;font-size:14px">${escHtml(c.name)}</span>
+          <span style="font-size:11px;color:var(--muted);margin-left:6px">${typeLabel}</span>
+        </div>
+        <span style="font-size:11px;color:${statusColor};font-weight:600">${statusLabel}</span>
+      </div>
+      ${cats ? `<div style="font-size:12px;color:var(--accent);margin-bottom:4px">🔧 ${escHtml(cats)}</div>` : ''}
+      ${c.contact ? `<div style="font-size:12px;color:var(--muted)">📞 ${escHtml(c.contact)}</div>` : ''}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+        <div>${renderRatingStars(c.rating || 0, false, null)}</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="openContractorModal('${c.id}')">✏ 編集</button>
+          <button class="btn-secondary" style="padding:4px 10px;font-size:11px;color:var(--red);border-color:var(--red)" onclick="deleteContractor('${c.id}')">削除</button>
+        </div>
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+// モーダルを開く（id=nullで新規、id指定で編集）
+function openContractorModal(id) {
+  const modal = document.getElementById('contractor-modal');
+  if (!modal) return;
+  const CATEGORIES = ['看板','内装','電気','塗装','その他'];
+  let c = null;
+  if (id) {
+    c = lsContractors().find(x => x.id === id);
+  }
+  // フォームを初期化
+  document.getElementById('ctr-id').value = c ? c.id : '';
+  document.getElementById('ctr-name').value = c ? (c.name || '') : '';
+  document.getElementById('ctr-contact').value = c ? (c.contact || '') : '';
+  document.getElementById('ctr-email').value = c ? (c.email || '') : '';
+  document.getElementById('ctr-address').value = c ? (c.address || '') : '';
+  document.getElementById('ctr-note').value = c ? (c.note || '') : '';
+  document.getElementById('ctr-rating').value = c ? (c.rating || 3) : 3;
+  // 種別ラジオ
+  const typeVal = c ? (c.type || 'company') : 'company';
+  document.querySelectorAll('input[name="ctr-type"]').forEach(r => {
+    r.checked = r.value === typeVal;
+  });
+  // ステータスラジオ
+  const statusVal = c ? (c.status || 'active') : 'active';
+  document.querySelectorAll('input[name="ctr-status"]').forEach(r => {
+    r.checked = r.value === statusVal;
+  });
+  // 工種チェックボックス
+  const selectedCats = c ? (c.category || []) : [];
+  let catHtml = '';
+  CATEGORIES.forEach(cat => {
+    const checked = selectedCats.includes(cat) ? 'checked' : '';
+    catHtml += `<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;padding:4px 8px;background:var(--card);border-radius:5px">
+      <input type="checkbox" name="ctr-cat" value="${cat}" ${checked} style="accent-color:var(--primary)">
+      ${cat}
+    </label>`;
+  });
+  document.getElementById('ctr-category-list').innerHTML = catHtml;
+  // 評価星
+  const ratingVal = c ? (c.rating || 3) : 3;
+  let starsHtml = '';
+  for (let i = 1; i <= 5; i++) {
+    const filled = i <= ratingVal;
+    starsHtml += `<span style="cursor:pointer;font-size:24px;color:${filled ? '#f59e0b' : 'var(--border)'}" onclick="setContractorRating(null, ${i})">${filled ? '★' : '☆'}</span>`;
+  }
+  document.getElementById('ctr-rating-stars').innerHTML = starsHtml;
+  document.getElementById('ctr-rating').value = ratingVal;
+  // タイトル
+  document.getElementById('ctr-modal-title').textContent = id ? '協力会社を編集' : '協力会社を登録';
+  modal.classList.add('show');
+}
+
+// モーダルを閉じる
+function closeContractorModal() {
+  const modal = document.getElementById('contractor-modal');
+  if (modal) modal.classList.remove('show');
+}
+
+// モーダルから保存
+function saveContractorFromModal() {
+  const name = document.getElementById('ctr-name').value.trim();
+  if (!name) { showToast('会社名/氏名を入力してください'); return; }
+  const id = document.getElementById('ctr-id').value || null;
+  const type = document.querySelector('input[name="ctr-type"]:checked') ?
+    document.querySelector('input[name="ctr-type"]:checked').value : 'company';
+  const status = document.querySelector('input[name="ctr-status"]:checked') ?
+    document.querySelector('input[name="ctr-status"]:checked').value : 'active';
+  const cats = Array.from(document.querySelectorAll('input[name="ctr-cat"]:checked')).map(el => el.value);
+  const rating = parseInt(document.getElementById('ctr-rating').value) || 3;
+  const data = {
+    id: id || undefined,
+    name,
+    type,
+    category: cats,
+    contact: document.getElementById('ctr-contact').value.trim(),
+    email: document.getElementById('ctr-email').value.trim(),
+    address: document.getElementById('ctr-address').value.trim(),
+    note: document.getElementById('ctr-note').value.trim(),
+    rating,
+    status
+  };
+  saveContractor(data);
+  closeContractorModal();
+  showToast('✅ 協力会社を保存しました');
+  renderContractorList(_ctrStatusFilter, _ctrCategoryFilter);
+}
+
+// 案件詳細の協力会社タブ描画
+function renderContractorTab(projectId) {
+  const projects = lsLoad(LS_PROJECTS_PIPELINE);
+  const proj = projects.find(p => p.id == projectId);
+  if (!proj) return '<div class="empty"><p>案件が見つかりません</p></div>';
+  const assignedIds = proj.contractors || [];
+  const allContractors = lsContractors().filter(c => c.status === 'active');
+  const assignedList = lsContractors().filter(c => assignedIds.includes(c.id));
+  const uid = localStorage.getItem('ago_current_user') || '';
+  const userObj = (typeof APP_CONFIG !== 'undefined') ? APP_CONFIG.users[uid] : null;
+  const isMaster = userObj && userObj.role === 'master';
+  let html = `<div style="margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px">担当協力会社</div>`;
+  if (assignedList.length === 0) {
+    html += `<div style="font-size:13px;color:var(--muted);padding:12px 0">${t('noContractors')}</div>`;
+  } else {
+    assignedList.forEach(c => {
+      const cats = Array.isArray(c.category) ? c.category.join('・') : '';
+      html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <span style="font-weight:700;font-size:14px">${escHtml(c.name)}</span>
+            <span style="font-size:11px;color:var(--muted);margin-left:6px">${c.type === 'company' ? t('contractorCompany') : t('contractorIndividual')}</span>
+          </div>
+          ${isMaster ? `<button class="btn-secondary" style="padding:3px 8px;font-size:11px;color:var(--red);border-color:var(--red)" onclick="removeContractorFromProject(${projectId},'${c.id}')">${t('contractorRemove')}</button>` : ''}
+        </div>
+        ${cats ? `<div style="font-size:12px;color:var(--accent);margin-top:4px">🔧 ${escHtml(cats)}</div>` : ''}
+        ${c.contact ? `<div style="font-size:12px;color:var(--muted);margin-top:3px">📞 ${escHtml(c.contact)}</div>` : ''}
+        ${c.email ? `<div style="font-size:12px;color:var(--muted);margin-top:2px">✉ ${escHtml(c.email)}</div>` : ''}
+        <div style="margin-top:4px">${renderRatingStars(c.rating || 0, false, null)}</div>
+      </div>`;
+    });
+  }
+  html += '</div>';
+  if (isMaster) {
+    const unassigned = allContractors.filter(c => !assignedIds.includes(c.id));
+    html += `<div style="border-top:1px solid var(--border);padding-top:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px">協力会社を追加</div>`;
+    if (unassigned.length === 0) {
+      html += `<div style="font-size:13px;color:var(--muted)">追加できる協力会社がありません</div>`;
+    } else {
+      html += `<div style="display:flex;flex-direction:column;gap:6px">`;
+      unassigned.forEach(c => {
+        const cats = Array.isArray(c.category) ? c.category.join('・') : '';
+        html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;align-items:center;gap:10px">
+          <div style="flex:1">
+            <span style="font-weight:600;font-size:13px">${escHtml(c.name)}</span>
+            ${cats ? `<span style="font-size:11px;color:var(--muted);margin-left:6px">${escHtml(cats)}</span>` : ''}
+            ${c.contact ? `<div style="font-size:11px;color:var(--muted)">📞 ${escHtml(c.contact)}</div>` : ''}
+          </div>
+          <button class="btn-secondary" style="padding:4px 10px;font-size:11px;color:var(--green);border-color:var(--green);white-space:nowrap" onclick="assignContractor(${projectId},'${c.id}')">${t('contractorAssign')}</button>
+        </div>`;
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+  return html;
+}
+
+// 案件に協力会社を紐づけ
+function assignContractor(projectId, contractorId) {
+  const projects = lsLoad(LS_PROJECTS_PIPELINE);
+  const idx = projects.findIndex(p => p.id == projectId);
+  if (idx === -1) return;
+  if (!projects[idx].contractors) projects[idx].contractors = [];
+  if (!projects[idx].contractors.includes(contractorId)) {
+    projects[idx].contractors.push(contractorId);
+  }
+  lsSave(LS_PROJECTS_PIPELINE, projects);
+  showToast('✅ 担当協力会社を設定しました');
+  currentPipelineTab = 'contractors';
+  renderPipelineDetail(projectId);
+}
+
+// 案件から協力会社を外す
+function removeContractorFromProject(projectId, contractorId) {
+  const projects = lsLoad(LS_PROJECTS_PIPELINE);
+  const idx = projects.findIndex(p => p.id == projectId);
+  if (idx === -1) return;
+  projects[idx].contractors = (projects[idx].contractors || []).filter(cid => cid !== contractorId);
+  lsSave(LS_PROJECTS_PIPELINE, projects);
+  showToast('担当から外しました');
+  currentPipelineTab = 'contractors';
+  renderPipelineDetail(projectId);
+}
+
+// Phase 6-H: renderMasterPanel の末尾（renderUserFeatures()の直後）で
+// renderContractorList() を呼び出すよう元の関数に追加済み。
 </script>
+
+<!-- 図面ビューア -->
+<div id="drawing-viewer-modal" class="modal-overlay" style="z-index:3000;padding:0" onclick="if(event.target===this)closeDrawingViewer()">
+  <div style="width:100%;height:100%;display:flex;flex-direction:column;background:var(--bg)">
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
+      <button onclick="closeDrawingViewer()" class="btn-secondary" style="padding:6px 12px">✕ 閉じる</button>
+      <span id="viewer-title" style="font-weight:700;flex:1"></span>
+      <div style="display:flex;gap:4px">
+        <button onclick="setDrawTool('pen')" id="tool-pen" class="btn-secondary" style="padding:6px 10px" title="ペン">✏️</button>
+        <button onclick="setDrawTool('eraser')" id="tool-eraser" class="btn-secondary" style="padding:6px 10px" title="消しゴム">🧹</button>
+        <input type="color" id="draw-color" value="#ef4444" style="width:36px;height:32px;border:none;cursor:pointer;border-radius:4px;padding:2px">
+        <button onclick="setDrawTool('pin')" id="tool-pin" class="btn-secondary" style="padding:6px 10px" title="ピン">📍</button>
+        <button onclick="saveDrawingAnnotations()" class="btn-primary" style="padding:6px 12px">保存</button>
+      </div>
+    </div>
+    <div style="flex:1;overflow:auto;position:relative;display:flex;align-items:flex-start;justify-content:center;padding:16px">
+      <div style="position:relative;display:inline-block" id="viewer-container">
+        <img id="viewer-img" style="display:block;max-width:100%;user-select:none" draggable="false">
+        <canvas id="draw-canvas" style="position:absolute;top:0;left:0;cursor:crosshair"></canvas>
+      </div>
+    </div>
+    <!-- ピン一覧 -->
+    <div id="pin-list-panel" style="max-height:200px;overflow-y:auto;padding:8px 14px;background:var(--surface);border-top:1px solid var(--border);font-size:13px"></div>
+  </div>
+</div>
+
+<!-- ピン追加モーダル（図面管理用） -->
+<div id="drawing-pin-modal" class="modal-overlay" onclick="if(event.target===this)hideModal('drawing-pin-modal')" style="z-index:4000">
+  <div class="modal" style="max-width:340px">
+    <h3 style="margin-bottom:12px">📍 ピンを追加</h3>
+    <div style="margin-bottom:10px">
+      <label style="font-size:13px;color:var(--muted)">指摘内容</label>
+      <textarea id="pin-comment" rows="3" style="width:100%;margin-top:4px;padding:8px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:14px" placeholder="例: 配線ルート要確認"></textarea>
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:13px;color:var(--muted)">担当者</label>
+      <select id="pin-assignee" style="width:100%;margin-top:4px;padding:8px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px"></select>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-primary" onclick="savePinFromModal()" style="flex:1">追加</button>
+      <button class="btn-secondary" onclick="hideModal('drawing-pin-modal')" style="flex:1">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- 電子黒板モーダル（Phase 6-G） -->
+<div id="blackboard-modal" class="modal-overlay" onclick="if(event.target===this)closeBlackboardModal()" style="z-index:3500;align-items:center">
+  <div class="modal" style="max-width:600px;width:100%;border-radius:16px;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:17px;font-weight:700">🪧 <span id="bb-modal-title">電子黒板</span></div>
+      <button onclick="closeBlackboardModal()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <!-- プレビューエリア -->
+    <div style="margin-bottom:16px;text-align:center;background:#000;border-radius:8px;overflow:hidden;position:relative;min-height:120px">
+      <canvas id="bb-preview-canvas" style="max-width:100%;max-height:320px;display:block;margin:0 auto"></canvas>
+    </div>
+    <!-- フォーム -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px" id="bb-lbl-koushu">工種</label>
+        <select id="bb-koushu" onchange="updateBlackboardPreview()" style="width:100%;padding:7px 10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px">
+          <option value="看板工事">看板工事</option>
+          <option value="内装工事">内装工事</option>
+          <option value="電気工事">電気工事</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px" id="bb-lbl-dankai">施工段階</label>
+        <select id="bb-dankai" onchange="updateBlackboardPreview()" style="width:100%;padding:7px 10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px">
+          <option value="着手前" id="bb-opt-before">着手前</option>
+          <option value="施工中" id="bb-opt-during">施工中</option>
+          <option value="完成" id="bb-opt-complete">完成</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px" id="bb-lbl-koujimei">工事名</label>
+        <input type="text" id="bb-koujimei" oninput="updateBlackboardPreview()" placeholder="例: ○○ビル看板" style="width:100%;padding:7px 10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px" id="bb-lbl-shisekibasho">施工箇所</label>
+        <input type="text" id="bb-shisekibasho" oninput="updateBlackboardPreview()" placeholder="例: 外壁・正面" style="width:100%;padding:7px 10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px" id="bb-lbl-date">撮影日</label>
+        <input type="date" id="bb-date" oninput="updateBlackboardPreview()" style="width:100%;padding:7px 10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px" id="bb-lbl-worker">撮影者</label>
+        <select id="bb-worker" onchange="updateBlackboardPreview()" style="width:100%;padding:7px 10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px">
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px" id="bb-lbl-position">黒板位置</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="bb-pos" value="bottom-left" onchange="updateBlackboardPreview()" checked> <span id="bb-opt-bl">左下</span></label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="bb-pos" value="bottom-right" onchange="updateBlackboardPreview()"> <span id="bb-opt-br">右下</span></label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="bb-pos" value="top-left" onchange="updateBlackboardPreview()"> <span id="bb-opt-tl">左上</span></label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="bb-pos" value="top-right" onchange="updateBlackboardPreview()"> <span id="bb-opt-tr">右上</span></label>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-primary" onclick="saveBlackboardPhoto()" style="flex:1;padding:10px" id="bb-btn-compose">合成して保存</button>
+      <button class="btn-secondary" onclick="closeBlackboardModal()" style="flex:1;padding:10px">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- 協力会社登録/編集モーダル（Phase 6-H） -->
+<div id="contractor-modal" class="modal-overlay" onclick="if(event.target===this)closeContractorModal()">
+  <div class="modal">
+    <div class="modal-title" id="ctr-modal-title">協力会社を登録</div>
+    <input type="hidden" id="ctr-id">
+    <div class="form-group">
+      <label class="form-label" for="ctr-name">会社名/氏名 *</label>
+      <input class="form-input" id="ctr-name" type="text" placeholder="例: 山田電気工事 / 田中一郎">
+    </div>
+    <div class="form-group">
+      <label class="form-label">種別</label>
+      <div style="display:flex;gap:16px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+          <input type="radio" name="ctr-type" value="company" checked style="accent-color:var(--primary)"> 会社
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+          <input type="radio" name="ctr-type" value="individual" style="accent-color:var(--primary)"> 個人
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">対応工種（複数選択可）</label>
+      <div id="ctr-category-list" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="ctr-contact">電話番号</label>
+      <input class="form-input" id="ctr-contact" type="tel" placeholder="例: 03-1234-5678">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="ctr-email">メール</label>
+      <input class="form-input" id="ctr-email" type="email" placeholder="例: info@example.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="ctr-address">住所</label>
+      <input class="form-input" id="ctr-address" type="text" placeholder="例: 東京都渋谷区...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">評価</label>
+      <div id="ctr-rating-stars" style="display:flex;gap:4px"></div>
+      <input type="hidden" id="ctr-rating" value="3">
+    </div>
+    <div class="form-group">
+      <label class="form-label">ステータス</label>
+      <div style="display:flex;gap:16px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+          <input type="radio" name="ctr-status" value="active" checked style="accent-color:var(--primary)"> 有効
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+          <input type="radio" name="ctr-status" value="inactive" style="accent-color:var(--primary)"> 無効
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="ctr-note">備考（単価・特記事項など）</label>
+      <textarea class="form-textarea" id="ctr-note" placeholder="例: 看板設置 日当¥25,000 / 要事前確認"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="saveContractorFromModal()">💾 保存</button>
+      <button class="btn-secondary" onclick="closeContractorModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
 
 <!-- ログインモーダル -->
 <div id="login-modal" class="modal-overlay" style="z-index:9999;align-items:center">
