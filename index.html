@@ -6010,6 +6010,432 @@ function importAllData(inputEl) {
   reader.readAsText(file);
 }
 
+// ── AI版AGO 統合API (window.AGO_API) ─────────────────────────
+(function() {
+  const AI_TOKEN = 'AGO_AI_2026';
+  const LS_AI_LOG = 'ago_ai_log';
+  let _authenticated = false;
+
+  function _ok(data) { return { success: true, data: data }; }
+  function _err(msg) { return { success: false, error: msg }; }
+
+  function _log(agent, action, detail) {
+    try {
+      const logs = JSON.parse(localStorage.getItem(LS_AI_LOG) || '[]');
+      logs.push({ ts: new Date().toISOString(), agent: agent || 'unknown', action, detail });
+      if (logs.length > 500) logs.splice(0, logs.length - 500);
+      localStorage.setItem(LS_AI_LOG, JSON.stringify(logs));
+    } catch(e) {}
+  }
+
+  function _authCheck() {
+    if (!_authenticated) throw new Error('認証が必要です。AGO_API.auth("AGO_AI_2026") を先に呼んでください。');
+  }
+
+  function _loadProjects() {
+    try { return JSON.parse(localStorage.getItem(LS_PROJECTS_PIPELINE) || '[]'); } catch(e) { return []; }
+  }
+  function _saveProjects(arr) { localStorage.setItem(LS_PROJECTS_PIPELINE, JSON.stringify(arr)); }
+
+  function _loadInvoices() {
+    try { return JSON.parse(localStorage.getItem(LS_INVOICES) || '[]'); } catch(e) { return []; }
+  }
+  function _saveInvoices(arr) { localStorage.setItem(LS_INVOICES, JSON.stringify(arr)); }
+
+  function _loadPOs() {
+    try { return JSON.parse(localStorage.getItem(LS_PO) || '[]'); } catch(e) { return []; }
+  }
+  function _savePOs(arr) { localStorage.setItem(LS_PO, JSON.stringify(arr)); }
+
+  function _loadEstimates() {
+    try { return JSON.parse(localStorage.getItem(LS_ESTIMATES) || '[]'); } catch(e) { return []; }
+  }
+  function _saveEstimates(arr) { localStorage.setItem(LS_ESTIMATES, JSON.stringify(arr)); }
+
+  function _loadExpenses() {
+    try { return JSON.parse(localStorage.getItem(LS_EXPENSES) || '[]'); } catch(e) { return []; }
+  }
+  function _saveExpenses(arr) { localStorage.setItem(LS_EXPENSES, JSON.stringify(arr)); }
+
+  function _loadChats() {
+    try { return JSON.parse(localStorage.getItem('ago_project_chats') || '[]'); } catch(e) { return []; }
+  }
+  function _saveChats(arr) { localStorage.setItem('ago_project_chats', JSON.stringify(arr)); }
+
+  function _nextId(arr) {
+    return arr.length === 0 ? 1 : Math.max(...arr.map(x => x.id || 0)) + 1;
+  }
+
+  window.AGO_API = {
+    version: '1.0.0',
+
+    // 認証（AIエージェントは最初にこれを呼ぶ）
+    auth: function(token) {
+      if (token === AI_TOKEN) {
+        _authenticated = true;
+        return _ok({ message: 'AGO SYSTEM MANAGER AI統合API 認証成功', version: this.version });
+      }
+      return _err('トークンが無効です');
+    },
+
+    // 全データエクスポート
+    readAll: function() {
+      try {
+        _authCheck();
+        _log('system', 'readAll', '全データ取得');
+        return _ok({
+          projects: _loadProjects(),
+          invoices: _loadInvoices(),
+          purchaseOrders: _loadPOs(),
+          estimates: _loadEstimates(),
+          expenses: _loadExpenses(),
+          chats: _loadChats(),
+        });
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 経営サマリー取得
+    getSummary: function() {
+      try {
+        _authCheck();
+        const projects = _loadProjects();
+        const invoices = _loadInvoices();
+        const expenses = _loadExpenses();
+        const now = new Date();
+        const thisMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+
+        const activeProjects = projects.filter(p => p.phase !== 'completed' && p.phase !== 'invoiced' && p.phase !== 'cancelled');
+        const completedThisMonth = projects.filter(p => p.phase === 'invoiced' && (p.updated_at||'').startsWith(thisMonth));
+        const revenue = invoices.filter(i => i.status === 'paid' && (i.created_at||'').startsWith(thisMonth))
+                                 .reduce((s, i) => s + (Number(i.amount)||0) + (Number(i.tax)||0), 0);
+        const expenseTotal = expenses.filter(e => (e.date||'').startsWith(thisMonth))
+                                      .reduce((s, e) => s + (Number(e.amount)||0), 0);
+
+        _log('system', 'getSummary', '経営サマリー取得');
+        return _ok({
+          activeProjects: activeProjects.length,
+          completedThisMonth: completedThisMonth.length,
+          revenueThisMonth: revenue,
+          expensesThisMonth: expenseTotal,
+          profitThisMonth: revenue - expenseTotal,
+          totalProjects: projects.length,
+        });
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 対応待ちタスク取得
+    getPendingTasks: function() {
+      try {
+        _authCheck();
+        const projects = _loadProjects();
+        const invoices = _loadInvoices();
+        const pending = [];
+
+        // 長期停滞案件（15日以上フェーズ変化なし）
+        const threshold = Date.now() - 15 * 86400000;
+        projects.filter(p => p.phase !== 'completed' && p.phase !== 'invoiced' && p.phase !== 'cancelled')
+          .forEach(p => {
+            const updated = new Date(p.updated_at || p.created_at || 0).getTime();
+            if (updated < threshold) {
+              pending.push({ type: 'stale_project', id: p.id, name: p.name, phase: p.phase, daysSince: Math.floor((Date.now()-updated)/86400000) });
+            }
+          });
+
+        // 未送付請求書
+        invoices.filter(i => i.status === 'draft').forEach(i => {
+          pending.push({ type: 'draft_invoice', id: i.id, client: i.client, amount: i.amount });
+        });
+
+        // 受付直後（未確定）案件
+        projects.filter(p => p.phase === 'reception').forEach(p => {
+          pending.push({ type: 'new_reception', id: p.id, name: p.name, client: p.client });
+        });
+
+        _log('system', 'getPendingTasks', `${pending.length}件取得`);
+        return _ok(pending);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 案件一覧取得（filter例: {phase:'designing', client:'AGO'}）
+    getProjects: function(filter) {
+      try {
+        _authCheck();
+        let projects = _loadProjects();
+        if (filter) {
+          if (filter.phase) projects = projects.filter(p => p.phase === filter.phase);
+          if (filter.client) projects = projects.filter(p => (p.client||'').includes(filter.client));
+          if (filter.staff) projects = projects.filter(p => Array.isArray(p.staff) && p.staff.includes(filter.staff));
+        }
+        _log('system', 'getProjects', `${projects.length}件取得`);
+        return _ok(projects);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 案件1件取得
+    getProject: function(id) {
+      try {
+        _authCheck();
+        const p = _loadProjects().find(p => p.id === id);
+        if (!p) return _err('案件が見つかりません: ' + id);
+        _log('system', 'getProject', 'id=' + id);
+        return _ok(p);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 案件作成（総務部 受注管理課 向け）
+    createProject: function(data, agent) {
+      try {
+        _authCheck();
+        const projects = _loadProjects();
+        const now = new Date().toISOString();
+        const proj = Object.assign({
+          id: _nextId(projects),
+          phase: 'reception',
+          staff: [],
+          created_at: now,
+          updated_at: now,
+          created_by: agent || 'ai',
+        }, data);
+        projects.push(proj);
+        _saveProjects(projects);
+        _log(agent, 'createProject', `id=${proj.id} name=${proj.name}`);
+        if (typeof renderPipelineTab === 'function') try { renderPipelineTab(); } catch(e) {}
+        return _ok(proj);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 案件更新
+    updateProject: function(id, data, agent) {
+      try {
+        _authCheck();
+        const projects = _loadProjects();
+        const idx = projects.findIndex(p => p.id === id);
+        if (idx < 0) return _err('案件が見つかりません: ' + id);
+        Object.assign(projects[idx], data, { updated_at: new Date().toISOString() });
+        _saveProjects(projects);
+        _log(agent, 'updateProject', `id=${id}`);
+        return _ok(projects[idx]);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // フェーズ更新（総務部・設計部・積算課 向け）
+    updatePhase: function(id, phase, agent) {
+      try {
+        _authCheck();
+        if (!PIPELINE_PHASES.includes(phase)) return _err('無効なフェーズ: ' + phase + ' / 有効値: ' + PIPELINE_PHASES.join(', '));
+        const projects = _loadProjects();
+        const idx = projects.findIndex(p => p.id === id);
+        if (idx < 0) return _err('案件が見つかりません: ' + id);
+        const oldPhase = projects[idx].phase;
+        projects[idx].phase = phase;
+        projects[idx].updated_at = new Date().toISOString();
+        _saveProjects(projects);
+        _log(agent, 'updatePhase', `id=${id} ${oldPhase}→${phase}`);
+        return _ok({ id, oldPhase, newPhase: phase });
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 担当スタッフ割当（総務部・設計部 向け）
+    assignStaff: function(id, staffIds, agent) {
+      try {
+        _authCheck();
+        if (!Array.isArray(staffIds)) return _err('staffIds は配列で指定してください');
+        const projects = _loadProjects();
+        const idx = projects.findIndex(p => p.id === id);
+        if (idx < 0) return _err('案件が見つかりません: ' + id);
+        projects[idx].staff = staffIds;
+        projects[idx].updated_at = new Date().toISOString();
+        _saveProjects(projects);
+        _log(agent, 'assignStaff', `id=${id} staff=${staffIds.join(',')}`);
+        return _ok(projects[idx]);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 案件チャットにメモ追加（全部門 向け）
+    addNote: function(projectId, text, agent) {
+      try {
+        _authCheck();
+        const chats = _loadChats();
+        const now = new Date().toISOString();
+        const note = {
+          id: _nextId(chats),
+          project_id: projectId,
+          text: text,
+          created_by: agent || 'ai',
+          created_at: now,
+          is_ai: true,
+        };
+        chats.push(note);
+        _saveChats(chats);
+        _log(agent, 'addNote', `project_id=${projectId}`);
+        return _ok(note);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 案件チャット取得
+    getChats: function(projectId) {
+      try {
+        _authCheck();
+        const chats = _loadChats().filter(c => c.project_id === projectId);
+        _log('system', 'getChats', `project_id=${projectId} ${chats.length}件`);
+        return _ok(chats);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 見積作成（積算見積課 向け）
+    createEstimate: function(data, agent) {
+      try {
+        _authCheck();
+        const estimates = _loadEstimates();
+        const now = new Date().toISOString();
+        const est = Object.assign({
+          id: _nextId(estimates),
+          status: 'draft',
+          created_at: now,
+          updated_at: now,
+          created_by: agent || 'ai',
+        }, data);
+        estimates.push(est);
+        _saveEstimates(estimates);
+        _log(agent, 'createEstimate', `id=${est.id} client=${est.client}`);
+        return _ok(est);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 請求書作成（経理部 向け）
+    createInvoice: function(data, agent) {
+      try {
+        _authCheck();
+        const invoices = _loadInvoices();
+        const now = new Date().toISOString();
+        const inv = Object.assign({
+          id: _nextId(invoices),
+          status: 'draft',
+          created_at: now,
+          updated_at: now,
+          created_by: agent || 'ai',
+        }, data);
+        invoices.push(inv);
+        _saveInvoices(invoices);
+        _log(agent, 'createInvoice', `id=${inv.id} client=${inv.client}`);
+        return _ok(inv);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 発注書作成（発注管理課 向け）
+    createPO: function(data, agent) {
+      try {
+        _authCheck();
+        const pos = _loadPOs();
+        const now = new Date().toISOString();
+        const po = Object.assign({
+          id: _nextId(pos),
+          status: 'draft',
+          created_at: now,
+          updated_at: now,
+          created_by: agent || 'ai',
+        }, data);
+        pos.push(po);
+        _savePOs(pos);
+        _log(agent, 'createPO', `id=${po.id}`);
+        return _ok(po);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 経費登録（経理部 向け）
+    createExpense: function(data, agent) {
+      try {
+        _authCheck();
+        const expenses = _loadExpenses();
+        const now = new Date().toISOString();
+        const exp = Object.assign({
+          id: _nextId(expenses),
+          created_at: now,
+          created_by: agent || 'ai',
+        }, data);
+        expenses.push(exp);
+        _saveExpenses(expenses);
+        _log(agent, 'createExpense', `id=${exp.id} amount=${exp.amount}`);
+        return _ok(exp);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 請求書一覧（project_id指定で絞り込み可）
+    getInvoices: function(projectId) {
+      try {
+        _authCheck();
+        let arr = _loadInvoices();
+        if (projectId != null) arr = arr.filter(i => i.project_id === projectId);
+        _log('system', 'getInvoices', `${arr.length}件`);
+        return _ok(arr);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 発注書一覧
+    getPOs: function(projectId) {
+      try {
+        _authCheck();
+        let arr = _loadPOs();
+        if (projectId != null) arr = arr.filter(p => p.project_id === projectId);
+        _log('system', 'getPOs', `${arr.length}件`);
+        return _ok(arr);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 見積一覧
+    getEstimates: function(projectId) {
+      try {
+        _authCheck();
+        let arr = _loadEstimates();
+        if (projectId != null) arr = arr.filter(e => e.project_id === projectId);
+        _log('system', 'getEstimates', `${arr.length}件`);
+        return _ok(arr);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // 経費一覧
+    getExpenses: function(projectId) {
+      try {
+        _authCheck();
+        let arr = _loadExpenses();
+        if (projectId != null) arr = arr.filter(e => e.project_id === projectId);
+        _log('system', 'getExpenses', `${arr.length}件`);
+        return _ok(arr);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // AI操作ログ取得
+    getAILog: function(limit) {
+      try {
+        _authCheck();
+        let logs = JSON.parse(localStorage.getItem(LS_AI_LOG) || '[]');
+        if (limit) logs = logs.slice(-limit);
+        return _ok(logs);
+      } catch(e) { return _err(e.message); }
+    },
+
+    // AIログクリア
+    clearAILog: function() {
+      try {
+        _authCheck();
+        localStorage.setItem(LS_AI_LOG, '[]');
+        return _ok({ message: 'ログをクリアしました' });
+      } catch(e) { return _err(e.message); }
+    },
+  };
+
+  // 別タブからAIがデータを変更した場合にUIを自動リフレッシュ
+  window.addEventListener('storage', function(e) {
+    const keys = [LS_PROJECTS_PIPELINE, LS_INVOICES, LS_PO, LS_ESTIMATES, LS_EXPENSES, 'ago_project_chats'];
+    if (keys.includes(e.key)) {
+      if (typeof renderCurrentTab === 'function') try { renderCurrentTab(); } catch(err) {}
+      else if (typeof renderPipelineTab === 'function') try { renderPipelineTab(); } catch(err) {}
+    }
+  });
+
+  console.log('[AGO_API] window.AGO_API v1.0.0 loaded — 認証: AGO_API.auth("AGO_AI_2026")');
+})();
+
 // ── 初期化 ───────────────────────────────────────────────────
 setLang(lang);
 loadOrders();
