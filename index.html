@@ -819,11 +819,11 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <div class="form-group" style="display:flex;gap:12px">
       <div style="flex:1">
         <label class="form-label" id="lbl-qty">数量</label>
-        <input class="form-input" id="inp-qty" type="number" value="1" min="1">
+        <input class="form-input" id="inp-qty" type="number" value="1" min="1" onfocus="this.select()">
       </div>
       <div style="flex:1">
         <label class="form-label" id="lbl-amount">金額（円）</label>
-        <input class="form-input" id="inp-amount" type="number" value="0" min="0">
+        <input class="form-input" id="inp-amount" type="number" value="0" min="0" onfocus="this.select()">
       </div>
     </div>
     <div class="form-group">
@@ -973,11 +973,11 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <div class="form-group" style="display:flex;gap:12px">
       <div style="flex:1">
         <label class="form-label">小計</label>
-        <input class="form-input" id="inv-inp-amount" type="number" value="0" min="0" onchange="calcInvTotal()">
+        <input class="form-input" id="inv-inp-amount" type="number" value="0" min="0" onchange="calcInvTotal()" onfocus="this.select()">
       </div>
       <div style="flex:1">
         <label class="form-label">消費税</label>
-        <input class="form-input" id="inv-inp-tax" type="number" value="0" min="0" onchange="calcInvTotal()">
+        <input class="form-input" id="inv-inp-tax" type="number" value="0" min="0" onchange="calcInvTotal()" onfocus="this.select()">
       </div>
       <div style="flex:1">
         <label class="form-label">合計</label>
@@ -1116,7 +1116,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <div class="form-group" style="display:flex;gap:12px">
       <div style="flex:1">
         <label class="form-label">金額（円）</label>
-        <input class="form-input" id="exp-inp-amount" type="number" value="0" min="0">
+        <input class="form-input" id="exp-inp-amount" type="number" value="0" min="0" onfocus="this.select()">
       </div>
       <div style="flex:1">
         <label class="form-label">日付</label>
@@ -1264,7 +1264,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     </div>
     <div class="form-group">
       <label class="form-label">見積金額（任意）</label>
-      <input class="form-input" id="proj-inp-estimate" type="number" value="" placeholder="0">
+      <input class="form-input" id="proj-inp-estimate" type="number" value="" placeholder="0" onfocus="this.select()">
     </div>
     <div class="form-group">
       <label class="form-label">
@@ -2153,7 +2153,7 @@ function showCreateModal() {
       });
     }
   } catch(e) {}
-  document.getElementById('create-modal').classList.add('show');
+  showModal('create-modal');
 }
 
 function createOrder() {
@@ -2199,7 +2199,7 @@ function showAdvanceModal() {
   document.getElementById('advance-info').innerHTML =
     `<strong>${curS.label}</strong> → <strong style="color:var(--accent)">${nextS.label}</strong>`;
   document.getElementById('inp-memo').value = '';
-  document.getElementById('advance-modal').classList.add('show');
+  showModal('advance-modal');
 }
 
 function advanceStatus() {
@@ -2232,7 +2232,7 @@ function showCancelModal() {
   if (!currentOrder) return;
   selectCancelReason('cancel_customer');
   document.getElementById('inp-cancel-note').value = '';
-  document.getElementById('cancel-modal').classList.add('show');
+  showModal('cancel-modal');
 }
 
 function execCancel() {
@@ -2278,7 +2278,7 @@ function onLogoTap() {
     logoTapCount = 0;
     if (!masterMode) {
       resetPin();
-      document.getElementById('pin-modal').classList.add('show');
+      showModal('pin-modal');
     } else {
       masterMode = false;
       document.getElementById('master-badge').classList.remove('visible');
@@ -2364,6 +2364,18 @@ function deleteOrder() {
 function hideModal(id) {
   document.getElementById(id).classList.remove('show');
 }
+
+function showModal(id) {
+  history.pushState({modal: id}, '', location.href);
+  document.getElementById(id).classList.add('show');
+}
+
+window.addEventListener('popstate', function() {
+  const open = document.querySelector('.modal-overlay.show');
+  if (open) {
+    open.classList.remove('show');
+  }
+});
 
 function showToast(msg) {
   const el = document.getElementById('toast');
@@ -3050,7 +3062,7 @@ function showPhaseModal(projectId) {
         </button>`).join('')}
     </div>`;
   document.getElementById('phase-data-id').value = projectId;
-  document.getElementById('phase-modal').classList.add('show');
+  showModal('phase-modal');
 }
 
 function changeProjectPhase(projectId, newPhase) {
@@ -3114,7 +3126,7 @@ function showPipelineModal(editId) {
     ).join('');
   }
 
-  document.getElementById('project-modal').classList.add('show');
+  showModal('project-modal');
 }
 
 function savePipelineProject() {
@@ -3240,7 +3252,7 @@ function showReportModal(projectId) {
       if (cfg && cfg.role !== 'china') sel.innerHTML += `<option value="${uid}">${name}</option>`;
     });
   }
-  document.getElementById('report-modal').classList.add('show');
+  showModal('report-modal');
 }
 
 function saveReport() {
@@ -3753,6 +3765,7 @@ function showSwitchUserModal() {
     document.body.appendChild(overlay);
   }
   overlay.innerHTML = html;
+  history.pushState({modal: 'switch-user-modal'}, '', location.href);
   overlay.classList.add('show');
 }
 
@@ -3919,7 +3932,7 @@ function showInvoiceModal(docType, editData) {
     addInvItemRow();
   }
 
-  document.getElementById('invoice-modal').classList.add('show');
+  showModal('invoice-modal');
 }
 
 let invItemCounter = 0;
@@ -3932,8 +3945,8 @@ function addInvItemRow(data) {
   div.id = 'inv-item-'+id;
   div.innerHTML = `
     <input class="desc" type="text" placeholder="内容" value="${escHtml((data&&data.description)||'')}">
-    <input class="qty" type="number" min="1" value="${(data&&data.qty)||1}" onchange="calcInvItems()">
-    <input class="price" type="number" min="0" value="${(data&&data.unit_price)||0}" onchange="calcInvItems()">
+    <input class="qty" type="number" min="1" value="${(data&&data.qty)||1}" onchange="calcInvItems()" onfocus="this.select()">
+    <input class="price" type="number" min="0" value="${(data&&data.unit_price)||0}" onchange="calcInvItems()" onfocus="this.select()">
     <button class="inv-item-remove" onclick="this.parentElement.remove();calcInvItems()">✕</button>`;
   container.appendChild(div);
 }
@@ -4095,7 +4108,7 @@ function showExpenseModal() {
     paidSel.innerHTML += `<option value="${id}">${name}</option>`;
   });
 
-  document.getElementById('expense-modal').classList.add('show');
+  showModal('expense-modal');
 }
 
 function saveExpense() {
@@ -4227,7 +4240,7 @@ function showInstructionSendModal() {
   document.getElementById('ins-from-select').value = currentUser;
   document.getElementById('ins-inp-subject').value = '';
   document.getElementById('ins-inp-body').value = '';
-  document.getElementById('instruction-modal').classList.add('show');
+  showModal('instruction-modal');
 }
 
 function sendInstruction() {
@@ -5315,7 +5328,7 @@ function showScheduleModal(entry) {
     btnRow.insertBefore(delBtn, btnRow.firstChild);
   }
 
-  document.getElementById('schedule-modal').classList.add('show');
+  showModal('schedule-modal');
 }
 
 // 現場選択変更時にカラーフィールドを表示/非表示
@@ -5465,7 +5478,7 @@ function showProjectModal(editId) {
     `<div class="color-opt ${c===selectedProjectColor?'selected':''}" style="background:${c}" onclick="selectProjectColor(this,'${c}')"></div>`
   ).join('');
 
-  document.getElementById('project-modal').classList.add('show');
+  showModal('project-modal');
 }
 
 let selectedProjectColor = PROJECT_COLORS[0];
@@ -6299,7 +6312,7 @@ function openDrawingViewer(drawingId, projectId) {
   document.getElementById('viewer-title').textContent = d.name + ' (v' + (d.version||1) + ')';
 
   const modal = document.getElementById('drawing-viewer-modal');
-  modal.classList.add('show');
+  showModal('drawing-viewer-modal');
 
   const img = document.getElementById('viewer-img');
 
@@ -6467,7 +6480,7 @@ function openPinModal() {
     sel.appendChild(opt);
   });
   document.getElementById('pin-comment').value = '';
-  document.getElementById('drawing-pin-modal').classList.add('show');
+  showModal('drawing-pin-modal');
 }
 
 function savePinFromModal() {
@@ -6736,7 +6749,7 @@ function openEstimateModal(id) {
     newBtn.style.display = (role === 'master' || role === 'office') ? '' : 'none';
   }
 
-  document.getElementById('estimate-modal').classList.add('show');
+  showModal('estimate-modal');
 }
 
 function closeEstimateModal() {
@@ -7433,7 +7446,7 @@ async function openBlackboardModal(projectId, photoId) {
   document.getElementById('bb-opt-tr').textContent = t('bbPosTopRight');
 
   // モーダルを表示
-  document.getElementById('blackboard-modal').classList.add('show');
+  showModal('blackboard-modal');
 
   // プレビューを初期描画
   updateBlackboardPreview();
@@ -7840,7 +7853,7 @@ function openContractorModal(id) {
   document.getElementById('ctr-rating').value = ratingVal;
   // タイトル
   document.getElementById('ctr-modal-title').textContent = id ? '協力会社を編集' : '協力会社を登録';
-  modal.classList.add('show');
+  showModal('contractor-modal');
 }
 
 // モーダルを閉じる
