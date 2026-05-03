@@ -6015,6 +6015,16 @@ document.addEventListener('DOMContentLoaded', function() {
   showLoginModal();
 });
 
+// 入力フィールド外でのBackspace=ブラウザ戻るを防止
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Backspace') {
+    const tag = e.target.tagName;
+    const editable = e.target.isContentEditable;
+    const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || editable;
+    if (!isInput) e.preventDefault();
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════
 // ── ANDPADボード（Phase 6-A）────────────────────────────────
 // ═══════════════════════════════════════════════════════════════

@@ -3,7 +3,7 @@
  * オフライン対応とキャッシュ管理
  */
 
-const CACHE_NAME = 'ago-system-v1';
+const CACHE_NAME = 'ago-system-v3';
 const STATIC_ASSETS = [
   'index.html',
   'config.js',
