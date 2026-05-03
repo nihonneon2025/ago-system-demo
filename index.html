@@ -335,6 +335,10 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .acc-sub-btn{background:none;border:none;color:var(--muted);padding:6px 14px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
 .acc-sub-btn:hover{color:var(--text)}
 .acc-sub-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.proj-view-nav{display:flex;gap:4px;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto}
+.proj-view-btn{background:none;border:none;color:var(--muted);padding:6px 14px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.proj-view-btn:hover{color:var(--text)}
+.proj-view-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
 .acc-list{padding:0 16px 100px}
 .acc-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all .2s}
 .acc-card:hover{border-color:var(--primary)}
@@ -453,6 +457,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <button class="notif-btn" id="notif-btn" onclick="enablePush()" title="プッシュ通知を有効にする">🔔</button>
     <button class="lang-btn active" id="btn-ja" onclick="setLang('ja')">🇯🇵 日本語</button>
     <button class="lang-btn" id="btn-zh" onclick="setLang('zh')">🇨🇳 中文</button>
+    <button class="lang-btn" id="switch-user-btn" onclick="showSwitchUserModal()" title="ユーザー切り替え" style="display:none">👤</button>
   </div>
 </header>
 
@@ -475,11 +480,22 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px">💾 データ管理</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn-secondary" style="padding:6px 14px;font-size:12px" onclick="exportAllData()">⬇ 全データ書き出し</button>
+      <button class="btn-secondary" style="padding:6px 14px;font-size:12px" onclick="exportAllDataWithPhotos()">📸 写真含む全データ書き出し</button>
       <label class="btn-secondary" style="padding:6px 14px;font-size:12px;cursor:pointer">
         ⬆ データ読み込み
         <input type="file" accept=".json" style="display:none" onchange="importAllData(this)">
       </label>
+      <button class="btn-secondary" style="padding:6px 14px;font-size:12px;color:var(--accent)" onclick="loadDemoData()">🗂 デモデータ投入</button>
     </div>
+  </div>
+  <!-- パスコード管理 -->
+  <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+    <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px">🔑 スタッフパスコード管理</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="pin-reset-user-select" class="sch-user-select" style="min-width:140px"></select>
+      <button class="btn-secondary" style="padding:6px 14px;font-size:12px;color:var(--yellow)" onclick="resetUserPin(document.getElementById('pin-reset-user-select').value)">パスコードをリセット</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">リセット後、次回ログイン時に本人が新しいパスコードを設定します</div>
   </div>
   <!-- スタッフ設定ガイド -->
   <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
@@ -559,7 +575,13 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
 <!-- Projects (案件パイプライン) View -->
 <div id="projects-view" style="display:none">
-  <div style="padding:12px 16px 8px;display:flex;gap:6px;overflow-x:auto;flex-wrap:nowrap">
+  <div class="proj-view-nav">
+    <button class="proj-view-btn active" id="pvbtn-list" onclick="switchProjectsView('list')">🏗 案件一覧</button>
+    <button class="proj-view-btn" id="pvbtn-drawings" onclick="switchProjectsView('drawings')">📐 全図面</button>
+    <button class="proj-view-btn" id="pvbtn-chat" onclick="switchProjectsView('chat')">💬 全チャット</button>
+    <button class="proj-view-btn" id="pvbtn-photos" onclick="switchProjectsView('photos')">📷 全写真</button>
+  </div>
+  <div id="proj-filter-row" style="padding:12px 16px 8px;display:flex;gap:6px;overflow-x:auto;flex-wrap:nowrap">
     <button class="filter-btn active" data-pfilter="all" onclick="setProjFilter(this)">全て</button>
     <button class="filter-btn" data-pfilter="reception" onclick="setProjFilter(this)">受付</button>
     <button class="filter-btn" data-pfilter="designing" onclick="setProjFilter(this)">設計中</button>
@@ -569,6 +591,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   </div>
   <div id="projects-list-body" style="padding:0 16px 100px"></div>
   <div id="projects-detail-body" style="display:none;padding:0 16px 100px"></div>
+  <div id="projects-aggregate-body" style="display:none;padding:0 16px 100px"></div>
 </div>
 
 <!-- Accounting View -->
@@ -929,8 +952,8 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <input class="form-input" id="inv-inp-client" type="text" placeholder="例: 株式会社○○">
     </div>
     <div class="form-group">
-      <label class="form-label">現場</label>
-      <select class="form-select" id="inv-inp-project"><option value="">-- なし --</option></select>
+      <label class="form-label">案件（施工項目）</label>
+      <select class="form-select" id="inv-inp-project" onchange="onProjSelectInvoice()"><option value="">-- なし --</option></select>
     </div>
     <div class="form-group" style="display:flex;gap:12px">
       <div style="flex:1">
@@ -1101,8 +1124,8 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">現場</label>
-      <select class="form-select" id="exp-inp-project"><option value="">-- なし --</option></select>
+      <label class="form-label">案件（施工項目）</label>
+      <select class="form-select" id="exp-inp-project" onchange="onProjSelectExpense()"><option value="">-- なし --</option></select>
     </div>
     <div class="form-group">
       <label class="form-label">支払者</label>
@@ -1747,7 +1770,7 @@ function switchTab(tab) {
   const uid = localStorage.getItem('ago_current_user');
   const cfg = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users[uid] : null;
   const role = cfg ? cfg.role : 'field';
-  if (tab === 'accounting' && role !== 'master' && role !== 'office') {
+  if (tab === 'accounting' && role !== 'master' && role !== 'office' && role !== 'developer' && !masterMode) {
     showToast('この機能の権限がありません');
     return;
   }
@@ -2298,6 +2321,7 @@ function pinKey(k) {
         if (currentOrder) document.getElementById('master-btns').style.display = 'flex';
         hideModal('pin-modal');
         renderMasterPanel();
+        applyFeatureVisibility();
         showToast(t('masterOn'));
       } else {
         document.getElementById('pin-error').textContent = '❌ PINが違います';
@@ -2413,8 +2437,191 @@ function urlBase64ToUint8Array(base64String) {
 // ═══════════════════════════════════════════════════════════════
 
 let projTabFilter = 'all';
+let currentProjectsView = 'list';
 let projTabData = [];
 let pipelineProjects = [];
+
+// ── Phase 7-A: 施工項目 全体ビュー切替 ───────────────────────────
+
+function switchProjectsView(view) {
+  currentProjectsView = view;
+  ['list','drawings','chat','photos'].forEach(v => {
+    const btn = document.getElementById('pvbtn-'+v);
+    if (btn) btn.classList.toggle('active', v===view);
+  });
+  const filterRow = document.getElementById('proj-filter-row');
+  const listBody  = document.getElementById('projects-list-body');
+  const detailBody= document.getElementById('projects-detail-body');
+  const aggBody   = document.getElementById('projects-aggregate-body');
+  filterRow.style.display  = view==='list' ? 'flex'  : 'none';
+  listBody.style.display   = view==='list' ? 'block' : 'none';
+  detailBody.style.display = 'none';
+  aggBody.style.display    = view!=='list' ? 'block' : 'none';
+  if (view==='list')     { pipelineProjects = lsLoad(LS_PROJECTS_PIPELINE); renderProjectsTab(); }
+  if (view==='drawings') renderAllDrawingsView();
+  if (view==='chat')     renderAllChatView();
+  if (view==='photos')   renderAllPhotosView();
+}
+
+function openProjectFromAggregateView(projectId, tab) {
+  currentProjectsView = 'list';
+  ['list','drawings','chat','photos'].forEach(v => {
+    const btn = document.getElementById('pvbtn-'+v);
+    if (btn) btn.classList.toggle('active', v==='list');
+  });
+  const fr = document.getElementById('proj-filter-row');
+  const ab = document.getElementById('projects-aggregate-body');
+  if (fr) fr.style.display = 'flex';
+  if (ab) ab.style.display = 'none';
+  currentPipelineTab = tab || 'info';
+  renderPipelineDetail(projectId);
+}
+
+function renderAllDrawingsView() {
+  const container = document.getElementById('projects-aggregate-body');
+  container.innerHTML = '';
+  const allProjects = lsLoad(LS_PROJECTS_PIPELINE);
+  const allDrawings = lsLoad(LS_DRAWINGS);
+  if (allDrawings.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">📐</div><p>図面がありません</p><p style="font-size:12px;color:var(--muted)">案件詳細→図面タブからアップロードできます</p></div>';
+    return;
+  }
+  const sorted = [...allDrawings].sort((a,b) => (b.uploadedAt||'') > (a.uploadedAt||'') ? 1 : -1);
+  container.innerHTML = '<div style="font-size:13px;color:var(--muted);margin-bottom:12px">全 '+sorted.length+' 件の図面</div>' +
+    sorted.map(d => {
+      const proj = allProjects.find(p => p.id == d.projectId);
+      const projName = proj ? escHtml(proj.name) : '不明案件';
+      const phaseClass = proj ? (PIPELINE_PHASE_CLASSES[proj.phase]||'') : '';
+      const typeIcon = d.type === 'pdf' ? '📄 PDF' : '🖼 画像';
+      const pins = d.pins ? d.pins.length : 0;
+      return '<div class="proj-pipeline-card" onclick="openProjectFromAggregateView('+d.projectId+',\'drawings\')" style="cursor:pointer">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
+        '<span style="font-weight:700;font-size:15px;flex:1">'+escHtml(d.name||'図面')+'</span>' +
+        '<span class="pipeline-badge '+phaseClass+'" style="font-size:10px;cursor:pointer">'+projName+'</span>' +
+        '</div>' +
+        '<div style="font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap">' +
+        '<span>'+typeIcon+'</span>' +
+        (d.uploadedAt ? '<span>📅 '+(d.uploadedAt||'').substring(0,10)+'</span>' : '') +
+        (d.version > 1 ? '<span>v'+d.version+'</span>' : '') +
+        (pins > 0 ? '<span>📌 '+pins+'件のピン指摘</span>' : '') +
+        '</div>' +
+        '</div>';
+    }).join('');
+}
+
+function renderAllChatView() {
+  const container = document.getElementById('projects-aggregate-body');
+  container.innerHTML = '';
+  const allProjects = lsLoad(LS_PROJECTS_PIPELINE);
+  const allChats = lsLoad(LS_CHATS);
+  const currentUserId = localStorage.getItem('ago_current_user') || 'unknown';
+
+  const sorted = [...allChats].sort((a,b) => (b.created_at||'') > (a.created_at||'') ? 1 : -1);
+
+  const msgHtml = sorted.length === 0
+    ? '<div class="empty"><div class="empty-icon">💬</div><p>チャットメッセージがありません</p></div>'
+    : sorted.map(msg => {
+        const proj = allProjects.find(p => String(p.id) === String(msg.projectId));
+        const projName = proj ? escHtml(proj.name) : '不明案件';
+        const isMine = msg.userId === currentUserId;
+        const borderColor = isMine ? 'var(--primary)' : 'var(--border)';
+        return '<div style="margin-bottom:8px;padding:10px;background:var(--surface);border-radius:10px;border-left:3px solid '+borderColor+'">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+          '<span style="font-size:12px;font-weight:700">'+escHtml(msg.userName||msg.userId||'不明')+'</span>' +
+          '<span class="pipeline-badge" style="font-size:10px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--text)" onclick="openProjectFromAggregateView('+msg.projectId+',\'chat\')">'+projName+'</span>' +
+          '</div>' +
+          '<div style="font-size:13px">'+escHtml(msg.body)+'</div>' +
+          (msg.mentions && msg.mentions.length > 0 ? '<div style="font-size:11px;color:var(--accent);margin-top:3px">@メンション: '+msg.mentions.map(m=>escHtml(m)).join(', ')+'</div>' : '') +
+          '<div style="font-size:11px;color:var(--muted);margin-top:4px">'+(msg.created_at||'').substring(0,16)+'</div>' +
+          '</div>';
+      }).join('');
+
+  const projOptions = allProjects.length > 0
+    ? allProjects.map(p => '<option value="'+p.id+'">'+escHtml(p.name)+'</option>').join('')
+    : '<option value="">案件がありません</option>';
+
+  container.innerHTML =
+    '<div style="font-size:13px;color:var(--muted);margin-bottom:8px">全 '+allChats.length+' 件のメッセージ（最新順）</div>' +
+    msgHtml +
+    '<div style="margin-top:16px;padding:12px;background:var(--surface);border-radius:10px;border:1px solid var(--border)">' +
+    '<div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--accent)">📨 案件へ送信</div>' +
+    '<select id="all-chat-proj-select" style="width:100%;padding:8px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;font-size:13px">' +
+    projOptions + '</select>' +
+    '<div style="display:flex;gap:8px">' +
+    '<textarea id="all-chat-input" placeholder="メッセージを入力..." rows="2" style="flex:1;padding:8px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;resize:none;font-size:13px"></textarea>' +
+    '<button class="btn-primary" onclick="sendAllChatMessage()" style="padding:8px 16px;align-self:flex-end">送信</button>' +
+    '</div></div>';
+}
+
+function sendAllChatMessage() {
+  const sel = document.getElementById('all-chat-proj-select');
+  const input = document.getElementById('all-chat-input');
+  if (!sel || !input) return;
+  const projectId = sel.value;
+  const body = input.value.trim();
+  if (!projectId) { showToast('案件を選択してください'); return; }
+  if (!body)       { showToast('メッセージを入力してください'); return; }
+
+  const currentUserId = localStorage.getItem('ago_current_user') || 'unknown';
+  const cfg = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users && APP_CONFIG.users[currentUserId])
+    ? APP_CONFIG.users[currentUserId] : null;
+  const userName = cfg ? cfg.name : currentUserId;
+
+  const all = lsLoad(LS_CHATS);
+  all.push({
+    id: lsNextId(all),
+    projectId: parseInt(projectId),
+    userId: currentUserId,
+    userName,
+    body,
+    mentions: [],
+    readBy: [currentUserId],
+    created_at: lsNow(),
+  });
+  lsSave(LS_CHATS, all);
+  input.value = '';
+  showToast('送信しました');
+  renderAllChatView();
+}
+
+async function renderAllPhotosView() {
+  const container = document.getElementById('projects-aggregate-body');
+  container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)">📷 写真を読み込み中...</div>';
+  const allProjects = lsLoad(LS_PROJECTS_PIPELINE);
+  try {
+    const db = await openPhotosDB();
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const store = tx.objectStore(IDB_STORE);
+    const req = store.getAll();
+    req.onsuccess = function() {
+      if (currentProjectsView !== 'photos') return;
+      const allPhotos = req.result || [];
+      if (allPhotos.length === 0) {
+        container.innerHTML = '<div class="empty"><div class="empty-icon">📷</div><p>写真がありません</p><p style="font-size:12px;color:var(--muted)">案件詳細→写真タブから追加できます</p></div>';
+        return;
+      }
+      const grid = allPhotos.map(photo => {
+        const proj = allProjects.find(p => String(p.id) === String(photo.projectId));
+        const projName = proj ? escHtml(proj.name) : '不明';
+        return '<div style="position:relative;aspect-ratio:1;overflow:hidden;border-radius:8px;cursor:pointer" onclick="openProjectFromAggregateView('+photo.projectId+',\'photos\')">' +
+          '<img src="'+photo.dataUrl+'" style="width:100%;height:100%;object-fit:cover" loading="lazy">' +
+          '<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);font-size:9px;padding:3px 5px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+projName+'</div>' +
+          '</div>';
+      }).join('');
+      container.innerHTML =
+        '<div style="font-size:13px;color:var(--muted);margin-bottom:12px">全 '+allPhotos.length+' 枚の写真</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">'+grid+'</div>';
+    };
+    req.onerror = function() {
+      if (currentProjectsView !== 'photos') return;
+      container.innerHTML = '<div class="empty"><p>写真の読み込みに失敗しました</p></div>';
+    };
+  } catch(e) {
+    container.innerHTML = '<div class="empty"><p>写真の読み込みに失敗しました<br><span style="font-size:11px">'+e.message+'</span></p></div>';
+  }
+}
+
+// ── Phase 7-A END ─────────────────────────────────────────────────
 
 function initProjectsTab() {
   pipelineProjects = lsLoad(LS_PROJECTS_PIPELINE);
@@ -2473,6 +2680,16 @@ let currentPipelineProjectId = null;
 let currentPipelineTab = 'info';
 
 function openProjectsTabDetail(id) {
+  // 集約ビューから来た場合はリストモードに戻す
+  currentProjectsView = 'list';
+  ['list','drawings','chat','photos'].forEach(v => {
+    const btn = document.getElementById('pvbtn-'+v);
+    if (btn) btn.classList.toggle('active', v==='list');
+  });
+  const fr = document.getElementById('proj-filter-row');
+  const ab = document.getElementById('projects-aggregate-body');
+  if (fr) fr.style.display = 'flex';
+  if (ab) ab.style.display = 'none';
   currentPipelineProjectId = id;
   currentPipelineTab = 'info';
   renderPipelineDetail(id);
@@ -2497,6 +2714,7 @@ function renderPipelineDetail(id) {
   // タブHTML
   const tabs = [
     {key:'info', label:'📋 基本情報'},
+    {key:'docs', label:'📄 書類'},
     {key:'schedule', label:'📅 工程'},
     {key:'photos', label:'📷 写真'},
     {key:'reports', label:'📝 日報'},
@@ -2547,6 +2765,15 @@ function renderPipelineDetail(id) {
         const style = isCurrent ? '' : (isDone ? 'opacity:.7' : 'opacity:.3;background:var(--border);color:var(--text)');
         return `<span class="${cls}" style="font-size:10px;${style}">${PIPELINE_PHASE_LABELS[ph]}</span>`;
       }).join('')}
+    </div>
+
+    <!-- クイック書類起票 -->
+    <div style="margin:16px 0 8px;font-size:12px;color:var(--muted)">書類を起票する</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="btn-secondary" style="padding:6px 14px;font-size:12px;color:var(--blue);border-color:var(--blue)" onclick="showInvoiceFromProject(${proj.id},'purchase_order')">📋 発注書</button>
+      <button class="btn-secondary" style="padding:6px 14px;font-size:12px;color:var(--orange);border-color:var(--orange)" onclick="showExpenseFromProject(${proj.id})">💸 経費</button>
+      <button class="btn-secondary" style="padding:6px 14px;font-size:12px;color:var(--green);border-color:var(--green)" onclick="showInvoiceFromProject(${proj.id},'invoice')">📄 請求書</button>
+      <button class="btn-secondary" style="padding:6px 14px;font-size:12px" onclick="switchPipelineTab(${proj.id},'docs')">📊 書類一覧</button>
     </div>
 
     <!-- 申し送り（info タブ内） -->
@@ -2668,6 +2895,63 @@ function renderPipelineDetail(id) {
 
   } else if (currentPipelineTab === 'contractors') {
     html += renderContractorTab(id);
+
+  } else if (currentPipelineTab === 'docs') {
+    const allInv = lsLoad(LS_INVOICES).filter(d => String(d.project_id) === String(id));
+    const allPO  = lsLoad(LS_PO).filter(d => String(d.project_id) === String(id));
+    const allExp = lsLoad(LS_EXPENSES).filter(d => String(d.project_id) === String(id));
+    const totalInv = allInv.reduce((s, d) => s + (parseInt(d.total) || 0), 0);
+    const totalPO  = allPO.reduce((s, d) => s + (parseInt(d.total) || 0), 0);
+    const totalExp = allExp.reduce((s, d) => s + (parseInt(d.amount) || 0), 0);
+    const estimate = parseInt(proj.estimate) || 0;
+
+    html += `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+      <button class="btn-secondary" style="padding:10px 6px;font-size:12px;text-align:center;color:var(--blue);border-color:var(--blue)" onclick="showInvoiceFromProject(${id},'purchase_order')">📋<br>発注書を起票</button>
+      <button class="btn-secondary" style="padding:10px 6px;font-size:12px;text-align:center;color:var(--orange);border-color:var(--orange)" onclick="showExpenseFromProject(${id})">💸<br>経費を追加</button>
+      <button class="btn-secondary" style="padding:10px 6px;font-size:12px;text-align:center;color:var(--green);border-color:var(--green)" onclick="showInvoiceFromProject(${id},'invoice')">📄<br>請求書を発行</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px">
+      <div style="background:var(--card);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">見積金額</div>
+        <div style="font-size:18px;font-weight:700;color:var(--accent)">¥${estimate.toLocaleString()}</div>
+      </div>
+      <div style="background:var(--card);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">請求済合計</div>
+        <div style="font-size:18px;font-weight:700;color:var(--green)">¥${totalInv.toLocaleString()}</div>
+      </div>
+      <div style="background:var(--card);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">発注書合計</div>
+        <div style="font-size:18px;font-weight:700;color:var(--blue)">¥${totalPO.toLocaleString()}</div>
+      </div>
+      <div style="background:var(--card);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">経費合計</div>
+        <div style="font-size:18px;font-weight:700;color:var(--red)">¥${totalExp.toLocaleString()}</div>
+      </div>
+    </div>
+
+    <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px">📄 請求書（${allInv.length}件）</div>
+    ${allInv.length === 0 ? '<p style="font-size:13px;color:var(--muted);margin-bottom:16px">なし</p>' :
+      allInv.map(d => `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--card);border-radius:8px;margin-bottom:6px;font-size:13px">
+        <div><span style="font-size:11px;color:var(--muted)">${d.doc_number||''}</span><br><strong>${escHtml(d.subject||'')}</strong></div>
+        <div style="text-align:right"><strong style="color:var(--green)">¥${parseInt(d.total||0).toLocaleString()}</strong><br><span style="font-size:11px;color:var(--muted)">${{draft:'下書',sent:'送付済',paid:'入金済'}[d.status]||d.status}</span></div>
+      </div>`).join('')}
+
+    <div style="font-size:13px;font-weight:600;color:var(--muted);margin:12px 0 8px">📋 発注書（${allPO.length}件）</div>
+    ${allPO.length === 0 ? '<p style="font-size:13px;color:var(--muted);margin-bottom:16px">なし</p>' :
+      allPO.map(d => `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--card);border-radius:8px;margin-bottom:6px;font-size:13px">
+        <div><span style="font-size:11px;color:var(--muted)">${d.doc_number||''}</span><br><strong>${escHtml(d.subject||'')}</strong></div>
+        <div style="text-align:right"><strong style="color:var(--blue)">¥${parseInt(d.total||0).toLocaleString()}</strong><br><span style="font-size:11px;color:var(--muted)">${{draft:'下書',approved:'承認済',paid:'支払済'}[d.status]||d.status}</span></div>
+      </div>`).join('')}
+
+    <div style="font-size:13px;font-weight:600;color:var(--muted);margin:12px 0 8px">💸 経費（${allExp.length}件）</div>
+    ${allExp.length === 0 ? '<p style="font-size:13px;color:var(--muted)">なし</p>' :
+      allExp.map(e => `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--card);border-radius:8px;margin-bottom:6px;font-size:13px">
+        <div><strong>${escHtml(e.description||'')}</strong><br><span style="font-size:11px;color:var(--muted)">${e.expense_date||''} · ${escHtml(e.category||'')}</span></div>
+        <strong style="color:var(--red)">-¥${parseInt(e.amount||0).toLocaleString()}</strong>
+      </div>`).join('')}
+    `;
   }
 
   detailBody.innerHTML = html;
@@ -2712,6 +2996,32 @@ function switchPipelineTab(id, tab) {
   currentPipelineTab = tab;
   renderPipelineDetail(id);
 }
+
+function showInvoiceFromProject(projId, docType) {
+  const proj = lsLoad(LS_PROJECTS_PIPELINE).find(p => p.id == projId);
+  if (!proj) return;
+  const label = docType === 'invoice' ? '工事代金' : '発注';
+  showInvoiceModal(docType, {
+    project_id: proj.id,
+    subject: proj.name + ' ' + label,
+    client_name: proj.client_name || '',
+    amount: docType === 'invoice' ? (proj.estimate || 0) : 0,
+    total:  docType === 'invoice' ? (proj.estimate || 0) : 0,
+  });
+  // 保存後に書類タブを再描画するためフラグを保持
+  _pendingDocRefreshProjectId = projId;
+}
+
+function showExpenseFromProject(projId) {
+  showExpenseModal();
+  setTimeout(() => {
+    const sel = document.getElementById('exp-inp-project');
+    if (sel) sel.value = projId;
+  }, 50);
+  _pendingDocRefreshProjectId = projId;
+}
+
+let _pendingDocRefreshProjectId = null;
 
 function postPipelineNote(projectId) {
   const body = document.getElementById('pipe-note-input').value.trim();
@@ -3038,7 +3348,7 @@ function filterProjectsByClient(clientName) {
 function requireMasterOrOffice() {
   const uid = localStorage.getItem('ago_current_user');
   const u = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users[uid] : null;
-  if (!u || (u.role !== 'master' && u.role !== 'office')) {
+  if (!u || (u.role !== 'master' && u.role !== 'office' && u.role !== 'developer')) {
     showToast(t('noPermission') || '権限がありません');
     return false;
   }
@@ -3098,7 +3408,7 @@ function renderMasterPanel() {
   const features = Object.keys(FEATURE_LABELS);
 
   // ロール別の機能制御
-  const roles = ['master','office','field','china'];
+  const roles = ['developer','master','office','field','china'];
   let html = '';
   roles.forEach(role => {
     html += `<div style="grid-column:1/-1;font-size:12px;font-weight:700;color:var(--muted);margin-top:8px">${role.toUpperCase()}</div>`;
@@ -3124,6 +3434,15 @@ function renderMasterPanel() {
   });
   if (currentVal) sel.value = currentVal;
   renderUserFeatures();
+  // パスコードリセット用ユーザーセレクト
+  const pinSel = document.getElementById('pin-reset-user-select');
+  if (pinSel) {
+    pinSel.innerHTML = '<option value="">スタッフを選択...</option>';
+    Object.entries(USERS).forEach(([id, name]) => {
+      pinSel.innerHTML += `<option value="${id}">${name}</option>`;
+    });
+  }
+
   // Phase 6-H: 協力会社一覧を描画
   if (typeof renderContractorList === 'function') {
     renderContractorList(
@@ -3185,10 +3504,15 @@ function saveMasterFeatures() {
 function applyFeatureVisibility() {
   const uid = localStorage.getItem('ago_current_user');
   if (!uid) {
-    // 未ログイン：ログインモーダルを表示
     showLoginModal();
     return;
   }
+
+  // master/developer はヘッダーのユーザー切り替えボタンを表示
+  const _allUsers = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users : {};
+  const _curRole = _allUsers[uid] ? _allUsers[uid].role : '';
+  const switchBtn = document.getElementById('switch-user-btn');
+  if (switchBtn) switchBtn.style.display = (_curRole === 'master' || _curRole === 'developer') ? '' : 'none';
 
   const tabMap = {
     schedule: 'tab-schedule',
@@ -3199,7 +3523,7 @@ function applyFeatureVisibility() {
   Object.entries(tabMap).forEach(([feature, tabId]) => {
     const el = document.getElementById(tabId);
     if (el) {
-      const allowed = getUserEffectivePermission(uid, feature);
+      const allowed = masterMode || getUserEffectivePermission(uid, feature);
       el.style.display = allowed ? '' : 'none';
     }
   });
@@ -3208,7 +3532,7 @@ function applyFeatureVisibility() {
   // CLAUDE.md 仕様: china = 発注 + 通知のみ / field = 施工担当だが施工項目管理・指示は office 以上
   const user = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users[uid] : null;
   const role = user ? user.role : null;
-  const masterOfficeOnly = (role === 'master' || role === 'office');
+  const masterOfficeOnly = (role === 'master' || role === 'office' || role === 'developer');
   ['tab-projects', 'tab-instructions'].forEach(tabId => {
     const el = document.getElementById(tabId);
     if (el) el.style.display = masterOfficeOnly ? '' : 'none';
@@ -3217,91 +3541,236 @@ function applyFeatureVisibility() {
 
 // ── ログインモーダル ───────────────────────────────────────────
 let loginSelectedUser = null;
+let loginPinStep = 'enter'; // 'enter' | 'set_new' | 'confirm_new'
+let loginNewPinBuffer = '';
+
+const LOGIN_PIN_LENGTH = 4;
+const LS_USER_PINS = 'ago_user_pins';
+
+function getUserPins() {
+  try { return JSON.parse(localStorage.getItem(LS_USER_PINS) || '{}'); } catch(e) { return {}; }
+}
+function setUserPin(userId, pin) {
+  const pins = getUserPins();
+  pins[userId] = pin;
+  localStorage.setItem(LS_USER_PINS, JSON.stringify(pins));
+}
+function hasUserPin(userId) {
+  return !!getUserPins()[userId];
+}
+
+function _loginPinDisplay(buf) {
+  document.getElementById('login-pin-display').textContent =
+    '●'.repeat(buf.length) + '-'.repeat(Math.max(0, LOGIN_PIN_LENGTH - buf.length));
+}
 
 function showLoginModal() {
   const modal = document.getElementById('login-modal');
   if (!modal) return;
   loginSelectedUser = null;
-  // ユーザーリスト生成
+  loginPinStep = 'enter';
+  loginNewPinBuffer = '';
+
   const listEl = document.getElementById('login-user-list');
   listEl.innerHTML = '';
   const users = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users : {};
+  const ROLE_LABEL = { master: '代表', office: '事務', field: 'スタッフ', china: '中国側', developer: '開発者' };
+
+  const devEntries = [];
   Object.entries(users).forEach(([id, u]) => {
+    if (u.role === 'developer') { devEntries.push([id, u]); return; }
     const btn = document.createElement('button');
     btn.className = 'btn-secondary';
     btn.style.cssText = 'width:100%;padding:10px;font-size:15px;text-align:left';
-    const roleLabel = { master: '代表', office: '事務', field: 'スタッフ', china: '中国側' };
-    btn.innerHTML = u.name + ' <span style="font-size:12px;color:var(--muted);margin-left:8px">' + (roleLabel[u.role] || u.role) + '</span>';
+    btn.innerHTML = escHtml(u.name) + ' <span style="font-size:12px;color:var(--muted);margin-left:8px">' + (ROLE_LABEL[u.role] || u.role) + '</span>';
     btn.onclick = function() { onLoginUserSelect(id, u); };
     listEl.appendChild(btn);
   });
-  // PIN入力エリアをリセット
+  // 開発者は一番下に目立たないスタイルで追加
+  if (devEntries.length > 0) {
+    const sep = document.createElement('div');
+    sep.style.cssText = 'border-top:1px solid var(--border);margin:8px 0 4px';
+    listEl.appendChild(sep);
+    devEntries.forEach(([id, u]) => {
+      const btn = document.createElement('button');
+      btn.style.cssText = 'width:100%;padding:6px 10px;font-size:12px;text-align:left;background:none;border:none;color:var(--muted);cursor:pointer;border-radius:6px;opacity:0.6';
+      btn.innerHTML = escHtml(u.name);
+      btn.onmouseenter = function() { this.style.opacity='1'; };
+      btn.onmouseleave = function() { this.style.opacity='0.6'; };
+      btn.onclick = function() { onLoginUserSelect(id, u); };
+      listEl.appendChild(btn);
+    });
+  }
+
   document.getElementById('login-pin-area').style.display = 'none';
-  document.getElementById('login-pin-display').textContent = '------';
+  document.getElementById('login-pin-display').textContent = '----';
   document.getElementById('login-pin-buffer').value = '';
   modal.classList.add('show');
 }
 
 function onLoginUserSelect(userId, userObj) {
   loginSelectedUser = userId;
-  const role = userObj.role;
-  if (role === 'master' || role === 'office') {
-    // PIN必須
-    document.getElementById('login-pin-label').textContent = userObj.name + ' のPINを入力してください';
-    document.getElementById('login-pin-display').textContent = '------';
-    document.getElementById('login-pin-buffer').value = '';
-    document.getElementById('login-pin-area').style.display = 'block';
+  loginNewPinBuffer = '';
+  document.getElementById('login-pin-buffer').value = '';
+  document.getElementById('login-pin-display').textContent = '----';
+
+  if (!hasUserPin(userId)) {
+    loginPinStep = 'set_new';
+    document.getElementById('login-pin-label').textContent = escHtml(userObj.name) + ' さん — 4桁の新しいパスコードを設定してください';
   } else {
-    // fieldとchinaはPINなしで即ログイン
-    completeLogin(userId);
+    loginPinStep = 'enter';
+    document.getElementById('login-pin-label').textContent = escHtml(userObj.name) + ' さんのパスコードを入力してください';
   }
+  document.getElementById('login-pin-area').style.display = 'block';
+  // フォーカスをキーボード入力に備えて設定
+  document.getElementById('login-pin-focus-trap').focus();
 }
 
 function loginPinKey(k) {
-  if (!MASTER_PIN) {
-    showToast('設定ファイルが読み込まれていません。config.js を確認してください。');
-    return;
-  }
   const bufInput = document.getElementById('login-pin-buffer');
   let buf = bufInput.value;
+
   if (k === 'clear') {
     buf = buf.slice(0, -1);
-  } else {
-    if (buf.length >= 6) return;
-    buf += k;
+    bufInput.value = buf;
+    _loginPinDisplay(buf);
+    return;
   }
+  if (k === 'confirm') {
+    if (buf.length > 0) _processLoginPin(buf);
+    return;
+  }
+  if (buf.length >= LOGIN_PIN_LENGTH) return;
+  buf += k;
   bufInput.value = buf;
-  // ディスプレイ更新（入力済み文字数分を●で表示）
-  document.getElementById('login-pin-display').textContent = '●'.repeat(buf.length) + '-'.repeat(Math.max(0, MASTER_PIN.length - buf.length));
-  // masterとofficeはmasterPINで認証（全員共通PIN）
-  if (buf.length === MASTER_PIN.length) {
-    setTimeout(() => {
-      if (buf === MASTER_PIN) {
-        completeLogin(loginSelectedUser);
-      } else {
-        document.getElementById('login-pin-display').textContent = '❌ PIN違い';
-        setTimeout(() => {
-          bufInput.value = '';
-          document.getElementById('login-pin-display').textContent = '------';
-        }, 1200);
-      }
-    }, 100);
+  _loginPinDisplay(buf);
+
+  if (buf.length === LOGIN_PIN_LENGTH) {
+    setTimeout(() => _processLoginPin(buf), 150);
   }
 }
 
+function _processLoginPin(buf) {
+  const users = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users : {};
+  const userObj = users[loginSelectedUser];
+  const displayEl = document.getElementById('login-pin-display');
+  const bufInput = document.getElementById('login-pin-buffer');
+
+  function resetBuf(labelText) {
+    bufInput.value = '';
+    displayEl.textContent = '----';
+    if (labelText) document.getElementById('login-pin-label').textContent = labelText;
+  }
+
+  if (loginPinStep === 'set_new') {
+    loginNewPinBuffer = buf;
+    loginPinStep = 'confirm_new';
+    resetBuf('もう一度同じパスコードを入力してください（確認）');
+  } else if (loginPinStep === 'confirm_new') {
+    if (buf === loginNewPinBuffer) {
+      setUserPin(loginSelectedUser, buf);
+      showToast('パスコードを設定しました');
+      completeLogin(loginSelectedUser);
+    } else {
+      displayEl.textContent = '❌ 一致しません';
+      setTimeout(() => {
+        loginPinStep = 'set_new';
+        loginNewPinBuffer = '';
+        resetBuf((userObj ? escHtml(userObj.name) + ' さん — ' : '') + '4桁の新しいパスコードを設定してください');
+      }, 1300);
+    }
+  } else {
+    const pins = getUserPins();
+    if (buf === pins[loginSelectedUser]) {
+      completeLogin(loginSelectedUser);
+    } else {
+      displayEl.textContent = '❌ パスコード違い';
+      setTimeout(() => { resetBuf(null); }, 1300);
+    }
+  }
+}
+
+// キーボード入力サポート（login-pin-area表示中のみ）
+document.addEventListener('keydown', function(e) {
+  if (document.getElementById('login-pin-area') && document.getElementById('login-pin-area').style.display !== 'none') {
+    if (e.key >= '0' && e.key <= '9') { loginPinKey(e.key); e.preventDefault(); }
+    else if (e.key === 'Backspace') { loginPinKey('clear'); e.preventDefault(); }
+    else if (e.key === 'Enter') { loginPinKey('confirm'); e.preventDefault(); }
+  }
+});
+
 function completeLogin(userId) {
   localStorage.setItem('ago_current_user', userId);
+  sessionStorage.setItem('ago_authenticated', 'true');
   const modal = document.getElementById('login-modal');
   if (modal) modal.classList.remove('show');
   applyFeatureVisibility();
   const users = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users : {};
   const name = (users[userId] && users[userId].name) ? users[userId].name : userId;
   showToast('ようこそ、' + name + ' さん');
+  // master/developer はヘッダーのユーザー切り替えボタンを表示
+  const role = users[userId] ? users[userId].role : '';
+  const switchBtn = document.getElementById('switch-user-btn');
+  if (switchBtn) switchBtn.style.display = (role === 'master' || role === 'developer') ? '' : 'none';
 }
 
 function logoutUser() {
   localStorage.removeItem('ago_current_user');
+  sessionStorage.removeItem('ago_authenticated');
+  const switchBtn = document.getElementById('switch-user-btn');
+  if (switchBtn) switchBtn.style.display = 'none';
   showLoginModal();
+}
+
+// ── 代理ログイン（master/developer のみ）─────────────────────
+function showSwitchUserModal() {
+  const users = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users : {};
+  const currentUid = localStorage.getItem('ago_current_user');
+  const currentUser = users[currentUid];
+  if (!currentUser || (currentUser.role !== 'master' && currentUser.role !== 'developer')) {
+    showToast('この機能は代表・開発者のみ使用できます');
+    return;
+  }
+
+  const ROLE_LABEL = { master: '代表', office: '事務', field: 'スタッフ', china: '中国側', developer: '開発者' };
+  let html = '<div class="modal" style="max-width:360px;width:100%;padding:20px"><h3 style="margin-bottom:12px;text-align:center">ユーザーを切り替え</h3>' +
+    '<p style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:12px">代表・開発者権限でパスコードなしで入れます</p>' +
+    '<div style="display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto">';
+  Object.entries(users).forEach(([id, u]) => {
+    if (id === currentUid) return;
+    html += '<button class="btn-secondary" style="width:100%;padding:10px;font-size:14px;text-align:left" onclick="completeLogin(\'' + escHtml(id) + '\');_hideSwitchModal()">' +
+      escHtml(u.name) + ' <span style="font-size:11px;color:var(--muted);margin-left:8px">' + (ROLE_LABEL[u.role] || u.role) + '</span></button>';
+  });
+  html += '</div><button class="btn-secondary" style="width:100%;margin-top:12px;padding:10px" onclick="_hideSwitchModal()">キャンセル</button></div>';
+
+  let overlay = document.getElementById('switch-user-modal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'switch-user-modal';
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'z-index:9998';
+    overlay.onclick = function(e) { if (e.target === overlay) _hideSwitchModal(); };
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = html;
+  overlay.classList.add('show');
+}
+
+function _hideSwitchModal() {
+  const m = document.getElementById('switch-user-modal');
+  if (m) m.classList.remove('show');
+}
+
+// ── パスコードリセット（マスターパネル用）─────────────────────
+function resetUserPin(userId) {
+  if (!userId) { showToast('ユーザーを選択してください'); return; }
+  const users = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.users) ? APP_CONFIG.users : {};
+  const name = users[userId] ? users[userId].name : userId;
+  if (!confirm(name + ' さんのパスコードをリセットします。次回ログイン時に再設定されます。よろしいですか？')) return;
+  const pins = getUserPins();
+  delete pins[userId];
+  localStorage.setItem(LS_USER_PINS, JSON.stringify(pins));
+  showToast(name + ' さんのパスコードをリセットしました');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3394,6 +3863,7 @@ function loadInvoices(docType) {
       <div class="acc-subject">${escHtml(inv.subject||'')}</div>
       <div class="acc-meta">
         ${inv.client_name ? escHtml(inv.client_name)+' · ' : ''}${inv.issue_date||''}
+        ${inv.project_name ? `<span style="font-size:11px;color:var(--accent);margin-left:4px">📁 ${escHtml(inv.project_name)}</span>` : ''}
         <span class="acc-amount" style="float:right">¥${parseInt(inv.total||0).toLocaleString()}</span>
       </div>
     </div>`;
@@ -3427,11 +3897,16 @@ function showInvoiceModal(docType, editData) {
   document.getElementById('inv-inp-status').value = (isEdit || hasPrefill) ? (editData.status||'draft') : 'draft';
   document.getElementById('inv-inp-notes').value = (isEdit || hasPrefill) ? (editData.notes||'') : '';
 
-  // 現場ドロップダウン
+  // 案件ドロップダウン（施工項目から）
   const projSel = document.getElementById('inv-inp-project');
   projSel.innerHTML = '<option value="">-- なし --</option>';
-  schProjects.forEach(p => {
-    projSel.innerHTML += `<option value="${p.id}">${escHtml(p.name)}</option>`;
+  lsLoad(LS_PROJECTS_PIPELINE).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    opt.dataset.client = p.client_name || '';
+    opt.dataset.estimate = p.estimate || 0;
+    projSel.appendChild(opt);
   });
   if ((isEdit || hasPrefill) && editData.project_id) projSel.value = editData.project_id;
 
@@ -3480,6 +3955,28 @@ function calcInvTotal() {
   document.getElementById('inv-inp-total').value = amount + tax;
 }
 
+function onProjSelectInvoice() {
+  const sel = document.getElementById('inv-inp-project');
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) return;
+  const docType = document.getElementById('inv-doc-type').value;
+  const projName = opt.textContent;
+  const client = opt.dataset.client || '';
+  const estimate = parseInt(opt.dataset.estimate) || 0;
+  const subjectEl = document.getElementById('inv-inp-subject');
+  if (!subjectEl.value) subjectEl.value = docType === 'invoice' ? projName + ' 工事代金' : projName + ' 発注';
+  const clientEl = document.getElementById('inv-inp-client');
+  if (!clientEl.value && client) clientEl.value = client;
+  if (docType === 'invoice' && estimate > 0 && !parseInt(document.getElementById('inv-inp-amount').value)) {
+    document.getElementById('inv-inp-amount').value = estimate;
+    calcInvTotal();
+  }
+}
+
+function onProjSelectExpense() {
+  // 将来: 案件選択で担当者を自動セットする等の拡張用
+}
+
 function saveInvoice() {
   const subject = document.getElementById('inv-inp-subject').value.trim();
   if (!subject) { showToast('件名は必須です'); return; }
@@ -3497,11 +3994,14 @@ function saveInvoice() {
     }
   });
 
+  const _invProjSel = document.getElementById('inv-inp-project');
+  const _invProjOpt = _invProjSel.options[_invProjSel.selectedIndex];
   const body = {
     doc_type: document.getElementById('inv-doc-type').value,
     subject,
     client_name: document.getElementById('inv-inp-client').value.trim(),
-    project_id: document.getElementById('inv-inp-project').value || null,
+    project_id: _invProjSel.value || null,
+    project_name: (_invProjOpt && _invProjOpt.value) ? _invProjOpt.textContent : '',
     issue_date: document.getElementById('inv-inp-issue').value,
     due_date: document.getElementById('inv-inp-due').value,
     amount: parseInt(document.getElementById('inv-inp-amount').value) || 0,
@@ -3534,6 +4034,11 @@ function saveInvoice() {
   if (currentAccSub === 'invoices') loadInvoices('invoice');
   if (currentAccSub === 'po') loadInvoices('purchase_order');
   if (currentAccSub === 'summary') loadFinanceSummary();
+  // 案件書類タブを開いたまま起票した場合は再描画
+  if (_pendingDocRefreshProjectId && currentPipelineTab === 'docs') {
+    renderPipelineDetail(currentPipelineProjectId);
+  }
+  _pendingDocRefreshProjectId = null;
 }
 
 // ── 経費 ─────────────────────────────────────────────────────
@@ -3557,7 +4062,7 @@ function loadExpenses() {
       <div class="exp-info">
         <span class="exp-cat">${escHtml(exp.category)}</span>
         <div class="exp-desc">${escHtml(exp.description)}</div>
-        <div class="exp-meta">${exp.expense_date||''} ${paidByName?' · '+escHtml(paidByName):''}</div>
+        <div class="exp-meta">${exp.expense_date||''} ${paidByName?' · '+escHtml(paidByName):''}${exp.project_name?' · 📁 '+escHtml(exp.project_name):''}</div>
       </div>
       <span class="exp-amount">-¥${parseInt(exp.amount||0).toLocaleString()}</span>
     </div>`;
@@ -3573,11 +4078,14 @@ function showExpenseModal() {
   document.getElementById('exp-inp-notes').value = '';
   document.getElementById('exp-inp-category').value = '材料費';
 
-  // 現場ドロップダウン
+  // 案件ドロップダウン（施工項目から）
   const projSel = document.getElementById('exp-inp-project');
   projSel.innerHTML = '<option value="">-- なし --</option>';
-  schProjects.forEach(p => {
-    projSel.innerHTML += `<option value="${p.id}">${escHtml(p.name)}</option>`;
+  lsLoad(LS_PROJECTS_PIPELINE).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    projSel.appendChild(opt);
   });
 
   // 支払者ドロップダウン
@@ -3594,12 +4102,15 @@ function saveExpense() {
   const desc = document.getElementById('exp-inp-desc').value.trim();
   if (!desc) { showToast('内容は必須です'); return; }
 
+  const _expProjSel = document.getElementById('exp-inp-project');
+  const _expProjOpt = _expProjSel.options[_expProjSel.selectedIndex];
   const body = {
     category: document.getElementById('exp-inp-category').value,
     description: desc,
     amount: parseInt(document.getElementById('exp-inp-amount').value) || 0,
     expense_date: document.getElementById('exp-inp-date').value,
-    project_id: document.getElementById('exp-inp-project').value || null,
+    project_id: _expProjSel.value || null,
+    project_name: (_expProjOpt && _expProjOpt.value) ? _expProjOpt.textContent : '',
     paid_by: document.getElementById('exp-inp-paidby').value,
     notes: document.getElementById('exp-inp-notes').value.trim(),
     created_by: localStorage.getItem('ago_current_user') || 'unknown',
@@ -3615,6 +4126,10 @@ function saveExpense() {
   showToast('✅ 経費を登録しました');
   loadExpenses();
   if (currentAccSub === 'summary') loadFinanceSummary();
+  if (_pendingDocRefreshProjectId && currentPipelineTab === 'docs') {
+    renderPipelineDetail(currentPipelineProjectId);
+  }
+  _pendingDocRefreshProjectId = null;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -5035,7 +5550,321 @@ const EXPORT_KEYS = [
   'ago_estimates',
   'ago_project_chats',
   'ago_contractors',
+  'ago_user_pins',
 ];
+
+function loadDemoData() {
+  const hasData = lsLoad('ago_projects').length > 0 || lsLoad('ago_sch_projects').length > 0;
+  const msg = hasData
+    ? 'すでにデータが存在します。デモデータを追加投入しますか？\n（既存データは上書きされません・追記されます）'
+    : 'デモデータを投入しますか？\n案件・スケジュール・見積書・協力会社のサンプルデータが作成されます。';
+  if (!confirm(msg)) return;
+
+  const now = lsNow();
+  const today = '2026-05-03';
+
+  // ── 1. 施工案件パイプライン（ago_projects）──
+  const demoProjects = [
+    { id:101, name:'渋谷ビルLED看板設置工事', type:'signage', phase:'construction',
+      client_name:'渋谷商事株式会社', location:'東京都渋谷区渋谷1-1-1',
+      start_date:'2026-04-20', end_date:'2026-05-15', estimate:850000,
+      needs_import:true, staff:['staff01','staff02','staff03'],
+      notes:'中国製LEDパネル使用。搬入は5/7予定。', color:'#6366f1',
+      status:'active', created_at:now, updated_at:now },
+    { id:102, name:'新宿店舗内装リノベーション', type:'interior', phase:'designing',
+      client_name:'株式会社ニューオープン', location:'東京都新宿区新宿3-2-5',
+      start_date:'2026-05-10', end_date:'2026-06-20', estimate:1200000,
+      needs_import:false, staff:['staff04','staff05'],
+      notes:'3フロア全面リノベ。図面確認中。', color:'#10b981',
+      status:'active', created_at:now, updated_at:now },
+    { id:103, name:'品川オフィス電気設備工事', type:'other', phase:'estimating',
+      client_name:'品川テクノパーク', location:'東京都品川区大崎1-5-8',
+      start_date:'2026-06-01', end_date:'2026-06-30', estimate:0,
+      needs_import:false, staff:['staff06'],
+      notes:'見積作成中。配線図は先方から受領済み。', color:'#f59e0b',
+      status:'active', created_at:now, updated_at:now },
+    { id:104, name:'池袋ショッピングモール看板', type:'signage', phase:'completed',
+      client_name:'池袋モール管理組合', location:'東京都豊島区東池袋1-10-1',
+      start_date:'2026-04-01', end_date:'2026-04-28', estimate:450000,
+      needs_import:false, staff:['staff01','staff07'],
+      notes:'完了・検収済み。', color:'#8b5cf6',
+      status:'active', created_at:now, updated_at:now },
+  ];
+
+  const existProj = lsLoad('ago_projects');
+  const existProjIds = existProj.map(p => p.id);
+  const newProjs = demoProjects.filter(p => !existProjIds.includes(p.id));
+  lsSave('ago_projects', [...existProj, ...newProjs]);
+
+  // ── 2. スケジュール現場（ago_sch_projects）──
+  const demoSchProjects = [
+    { id:201, name:'渋谷ビルLED工事', location:'渋谷区渋谷1-1-1',
+      client_name:'渋谷商事', start_date:'2026-04-20', end_date:'2026-05-15',
+      notes:'メイン現場', color:'#6366f1', status:'active',
+      created_at:now, updated_at:now },
+    { id:202, name:'新宿内装工事', location:'新宿区新宿3-2-5',
+      client_name:'ニューオープン', start_date:'2026-05-10', end_date:'2026-06-20',
+      notes:'', color:'#10b981', status:'active',
+      created_at:now, updated_at:now },
+  ];
+
+  const existSch = lsLoad('ago_sch_projects');
+  const existSchIds = existSch.map(p => p.id);
+  const newSch = demoSchProjects.filter(p => !existSchIds.includes(p.id));
+  lsSave('ago_sch_projects', [...existSch, ...newSch]);
+
+  // ── 3. スケジュールエントリー（ago_sch_entries）──
+  const demoEntries = [
+    { id:301, title:'渋谷ビル：LEDパネル搬入・設置1日目', date:'2026-05-07',
+      start_time:'08:00', end_time:'18:00', project_id:201,
+      project_color:'#6366f1', project_name:'渋谷ビルLED工事',
+      notes:'クレーン手配済み', staff:['staff01','staff02','staff03'],
+      created_by:'kanno', created_at:now, updated_at:now },
+    { id:302, title:'渋谷ビル：配線・仕上げ', date:'2026-05-08',
+      start_time:'08:00', end_time:'17:00', project_id:201,
+      project_color:'#6366f1', project_name:'渋谷ビルLED工事',
+      notes:'点灯確認まで', staff:['staff01','staff02'],
+      created_by:'kanno', created_at:now, updated_at:now },
+    { id:303, title:'新宿：現場採寸・打ち合わせ', date:'2026-05-09',
+      start_time:'10:00', end_time:'12:00', project_id:202,
+      project_color:'#10b981', project_name:'新宿内装工事',
+      notes:'設計担当同行', staff:['staff04','staff05'],
+      created_by:'office01', created_at:now, updated_at:now },
+  ];
+
+  const existEntries = lsLoad('ago_sch_entries');
+  const existEntryIds = existEntries.map(e => e.id);
+  const newEntries = demoEntries.filter(e => !existEntryIds.includes(e.id));
+  lsSave('ago_sch_entries', [...existEntries, ...newEntries]);
+
+  // ── 4. 見積書（ago_estimates）──
+  const demoEstimates = [
+    { id:401, est_id:'EST-202605-0001',
+      projectId:'101', projectName:'渋谷ビルLED看板設置工事',
+      clientName:'渋谷商事株式会社', subject:'LEDサイン設置工事 見積書',
+      date:'2026-05-01', validUntil:'2026-05-31', status:'approved',
+      items:[
+        {name:'LEDパネル（中国製）', qty:4, unit:'枚', unitPrice:120000, amount:480000},
+        {name:'取付金具・ブラケット', qty:1, unit:'式', unitPrice:85000, amount:85000},
+        {name:'電気配線工事', qty:1, unit:'式', unitPrice:120000, amount:120000},
+        {name:'施工費（人工3名×2日）', qty:6, unit:'人工', unitPrice:25000, amount:150000},
+      ],
+      subtotal:835000, taxRate:10, taxAmount:83500, total:918500,
+      created_at:now, updated_at:now },
+  ];
+
+  const existEst = lsLoad('ago_estimates');
+  const existEstIds = existEst.map(e => e.id);
+  const newEst = demoEstimates.filter(e => !existEstIds.includes(e.id));
+  lsSave('ago_estimates', [...existEst, ...newEst]);
+
+  // ── 5. 協力会社（ago_contractors）──
+  const demoContractors = [
+    { id:501, name:'山田電工株式会社', category:'電気', contact:'03-1234-5678',
+      notes:'電気工事専門・夜間対応可', status:'active', created_at:now },
+    { id:502, name:'鈴木看板工房', category:'看板', contact:'090-9876-5432',
+      notes:'LED・シート看板専門、大型重量物得意', status:'active', created_at:now },
+    { id:503, name:'内装の佐藤', category:'内装', contact:'03-8765-4321',
+      notes:'内装仕上げ職人・丁寧な仕事', status:'active', created_at:now },
+  ];
+
+  const existCtr = lsLoad('ago_contractors');
+  const existCtrIds = existCtr.map(c => c.id);
+  const newCtr = demoContractors.filter(c => !existCtrIds.includes(c.id));
+  lsSave('ago_contractors', [...existCtr, ...newCtr]);
+
+  // ── 6. 工事日報（ago_project_logs）──
+  const demoLogs = [
+    { id:601, project_id:101, user_id:'staff01', log_date:'2026-05-07',
+      body:'LEDパネル4枚搬入完了。取付金具を壁面に固定。明日は配線作業予定。', created_at:now },
+    { id:602, project_id:104, user_id:'staff01', log_date:'2026-04-28',
+      body:'看板設置・点灯確認完了。クライアント立会いで検収サイン受領。', created_at:now },
+  ];
+  const existLogs = lsLoad('ago_project_logs');
+  const existLogIds = existLogs.map(l => l.id);
+  const newLogs = demoLogs.filter(l => !existLogIds.includes(l.id));
+  lsSave('ago_project_logs', [...existLogs, ...newLogs]);
+
+  // ── 7. チェックリスト（ago_project_checklists）──
+  const demoChecklists = [
+    { id:701, project_id:104, template:'signage', created_at:now,
+      items:[
+        {label:'施工前安全確認', checked:true},
+        {label:'現場写真（施工前）撮影', checked:true},
+        {label:'看板・部材搬入確認', checked:true},
+        {label:'取付金具固定確認', checked:true},
+        {label:'電気配線接続確認', checked:true},
+        {label:'点灯試験（全箇所）', checked:true},
+        {label:'現場写真（完成）撮影', checked:true},
+        {label:'クライアント立会い確認', checked:true},
+        {label:'清掃・後片付け', checked:true},
+        {label:'検収書受領', checked:true},
+      ]},
+  ];
+  const existCl = lsLoad('ago_project_checklists');
+  const existClIds = existCl.map(c => c.id);
+  const newCl = demoChecklists.filter(c => !existClIds.includes(c.id));
+  lsSave('ago_project_checklists', [...existCl, ...newCl]);
+
+  // ── 8. チャットメッセージ（ago_project_chats）──
+  const demoChatMsg = [
+    { id:801, projectId:'101', userId:'kanno', userName:'菅野',
+      body:'渋谷の現場、5/7搬入確認できますか？', mentions:[],
+      readBy:['kanno'], created_at:now },
+    { id:802, projectId:'101', userId:'staff01', userName:'スタッフ01',
+      body:'@菅野 確認しました。クレーン8時に来ます。', mentions:['kanno'],
+      readBy:['kanno','staff01'], created_at:now },
+    { id:803, projectId:'101', userId:'office01', userName:'事務01',
+      body:'伝票準備しておきます。', mentions:[],
+      readBy:['kanno','staff01','office01'], created_at:now },
+  ];
+  const existChat = lsLoad('ago_project_chats');
+  const existChatIds = existChat.map(m => m.id);
+  const newChat = demoChatMsg.filter(m => !existChatIds.includes(m.id));
+  lsSave('ago_project_chats', [...existChat, ...newChat]);
+
+  // ── 9. 追加見積書（ago_estimates）──
+  const demoEstimates2 = [
+    { id:402, est_id:'EST-202605-0002',
+      projectId:'104', projectName:'池袋駅前シート看板',
+      clientName:'池袋商業協同組合', subject:'シート看板製作・施工 見積書',
+      date:'2026-04-15', validUntil:'2026-05-15', status:'approved',
+      items:[
+        {name:'カッティングシート印刷（大判）', qty:6, unit:'枚', unitPrice:38000, amount:228000},
+        {name:'施工費（人工2名×1日）', qty:2, unit:'人工', unitPrice:25000, amount:50000},
+        {name:'諸経費', qty:1, unit:'式', unitPrice:15000, amount:15000},
+      ],
+      subtotal:293000, taxRate:10, taxAmount:29300, total:322300,
+      created_at:now, updated_at:now },
+    { id:403, est_id:'EST-202605-0003',
+      projectId:'102', projectName:'新宿内装工事',
+      clientName:'新宿ビジネスセンター株式会社', subject:'内装仕上げ工事 見積書',
+      date:'2026-05-03', validUntil:'2026-06-03', status:'sent',
+      items:[
+        {name:'クロス張替え（壁面）', qty:120, unit:'㎡', unitPrice:2200, amount:264000},
+        {name:'床材張替え（フローリング）', qty:80, unit:'㎡', unitPrice:8500, amount:680000},
+        {name:'施工費', qty:1, unit:'式', unitPrice:180000, amount:180000},
+      ],
+      subtotal:1124000, taxRate:10, taxAmount:112400, total:1236400,
+      created_at:now, updated_at:now },
+    { id:404, est_id:'EST-202605-0004',
+      projectId:'103', projectName:'品川電気設備更新',
+      clientName:'品川工業株式会社', subject:'電気設備更新工事 見積書',
+      date:'2026-05-03', validUntil:'2026-06-03', status:'draft',
+      items:[
+        {name:'分電盤交換', qty:2, unit:'台', unitPrice:95000, amount:190000},
+        {name:'配線工事（幹線）', qty:1, unit:'式', unitPrice:240000, amount:240000},
+        {name:'LED照明器具（蛍光灯置換）', qty:24, unit:'台', unitPrice:18000, amount:432000},
+        {name:'施工費', qty:1, unit:'式', unitPrice:120000, amount:120000},
+      ],
+      subtotal:982000, taxRate:10, taxAmount:98200, total:1080200,
+      created_at:now, updated_at:now },
+  ];
+  const existEst2 = lsLoad('ago_estimates');
+  const existEstIds2 = existEst2.map(e => e.id);
+  const newEst2 = demoEstimates2.filter(e => !existEstIds2.includes(e.id));
+  lsSave('ago_estimates', [...existEst2, ...newEst2]);
+
+  // ── 10. 請求書（ago_invoices）──
+  const demoInvoices = [
+    { id:1001, doc_number:'INV-202604-0001', doc_type:'invoice',
+      subject:'池袋駅前シート看板 工事代金', client_name:'池袋商業協同組合',
+      project_id:'104',
+      issue_date:'2026-04-30', due_date:'2026-05-31',
+      items:[
+        {description:'シート看板製作・施工（見積書 EST-202605-0002に準拠）', qty:1, unit_price:293000},
+      ],
+      amount:293000, tax:29300, total:322300, status:'paid',
+      notes:'入金確認済み（2026-05-02）',
+      created_by:'kanno', created_at:now, updated_at:now },
+    { id:1002, doc_number:'INV-202605-0001', doc_type:'invoice',
+      subject:'渋谷ビルLED看板設置工事 中間請求', client_name:'渋谷商事株式会社',
+      project_id:'101',
+      issue_date:'2026-05-01', due_date:'2026-05-31',
+      items:[
+        {description:'LEDパネル・資材費（中間）', qty:1, unit_price:480000},
+        {description:'施工費（第1回・搬入・仮設）', qty:1, unit_price:175000},
+      ],
+      amount:655000, tax:65500, total:720500, status:'sent',
+      notes:'施工完了後に残金請求予定',
+      created_by:'kanno', created_at:now, updated_at:now },
+  ];
+  const existInv = lsLoad('ago_invoices');
+  const existInvIds = existInv.map(i => i.id);
+  const newInv = demoInvoices.filter(i => !existInvIds.includes(i.id));
+  lsSave('ago_invoices', [...existInv, ...newInv]);
+
+  // ── 11. 発注書（ago_purchase_orders）──
+  const demoPOs = [
+    { id:2001, doc_number:'PO-202605-0001', doc_type:'purchase_order',
+      subject:'LEDパネル（中国製）発注', client_name:'深セン光電子科技有限公司',
+      project_id:'101',
+      issue_date:'2026-04-28', due_date:'2026-05-10',
+      items:[
+        {description:'P4 LEDパネル 640×640mm', qty:4, unit_price:45000},
+        {description:'電源ユニット', qty:4, unit_price:8500},
+        {description:'国際輸送費（EMS）', qty:1, unit_price:28000},
+      ],
+      amount:234000, tax:0, total:234000, status:'approved',
+      notes:'中国発注済み・追跡番号: EE123456789CN',
+      created_by:'kanno', created_at:now, updated_at:now },
+    { id:2002, doc_number:'PO-202605-0002', doc_type:'purchase_order',
+      subject:'電気工事資材発注', client_name:'山田電工株式会社',
+      project_id:'101',
+      issue_date:'2026-05-01', due_date:'2026-05-07',
+      items:[
+        {description:'配線ケーブル（VVF2.0-3C）', qty:50, unit_price:1200},
+        {description:'分岐ブレーカー', qty:2, unit_price:15000},
+        {description:'作業費', qty:1, unit_price:45000},
+      ],
+      amount:135000, tax:13500, total:148500, status:'approved',
+      notes:'現場搬入日: 2026-05-06 午前中',
+      created_by:'office01', created_at:now, updated_at:now },
+    { id:2003, doc_number:'PO-202604-0001', doc_type:'purchase_order',
+      subject:'シート看板施工 外注発注', client_name:'鈴木看板工房',
+      project_id:'104',
+      issue_date:'2026-04-18', due_date:'2026-04-25',
+      items:[
+        {description:'カッティングシート施工（大判×6枚）', qty:1, unit_price:50000},
+      ],
+      amount:50000, tax:5000, total:55000, status:'paid',
+      notes:'施工完了・支払済み',
+      created_by:'kanno', created_at:now, updated_at:now },
+  ];
+  const existPO = lsLoad('ago_purchase_orders');
+  const existPOIds = existPO.map(p => p.id);
+  const newPO = demoPOs.filter(p => !existPOIds.includes(p.id));
+  lsSave('ago_purchase_orders', [...existPO, ...newPO]);
+
+  // ── 12. 経費（ago_expenses）──
+  const demoExpenses = [
+    { id:3001, category:'交通費', description:'渋谷現場 交通費（スタッフ01〜03 往復）',
+      amount:4500, expense_date:'2026-05-06', project_id:'101',
+      paid_by:'staff01', notes:'ICカード精算', created_by:'staff01', created_at:now },
+    { id:3002, category:'材料費', description:'現場消耗品（テープ・養生シート等）',
+      amount:8200, expense_date:'2026-05-06', project_id:'101',
+      paid_by:'staff02', notes:'ホームセンター購入・レシート添付', created_by:'staff02', created_at:now },
+    { id:3003, category:'外注費', description:'クレーン手配費（搬入用・1日）',
+      amount:65000, expense_date:'2026-05-07', project_id:'101',
+      paid_by:'kanno', notes:'〇〇クレーン会社 請求書受領', created_by:'kanno', created_at:now },
+    { id:3004, category:'交通費', description:'池袋現場 交通費（スタッフ04 往復）',
+      amount:1200, expense_date:'2026-04-24', project_id:'104',
+      paid_by:'staff04', notes:'電車代', created_by:'staff04', created_at:now },
+    { id:3005, category:'事務用品', description:'印刷用紙・インク購入',
+      amount:3800, expense_date:'2026-05-02', project_id:null,
+      paid_by:'office01', notes:'事務所消耗品', created_by:'office01', created_at:now },
+  ];
+  const existExp = lsLoad('ago_expenses');
+  const existExpIds = existExp.map(e => e.id);
+  const newExp = demoExpenses.filter(e => !existExpIds.includes(e.id));
+  lsSave('ago_expenses', [...existExp, ...newExp]);
+
+  showToast('デモデータを投入しました（案件4件・見積4件・請求書2件・発注書3件・経費5件・協力会社3社）');
+  document.getElementById('master-panel').classList.remove('visible');
+
+  // 現在の表示を施工項目タブにリフレッシュ
+  switchTab('projects');
+}
 
 function exportAllData() {
   const snap = {};
@@ -5063,6 +5892,47 @@ function exportAllData() {
   showToast('✅ データを書き出しました（ago_export_' + stamp + '.json）');
 }
 
+async function exportAllDataWithPhotos() {
+  const snap = {};
+  EXPORT_KEYS.forEach(key => {
+    try { snap[key] = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { snap[key] = null; }
+  });
+  const photosKeys = Object.keys(localStorage).filter(k => k.startsWith('ago_project_photos_'));
+  photosKeys.forEach(key => {
+    try { snap[key] = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { snap[key] = null; }
+  });
+
+  // IndexedDB写真を全件読み込み
+  try {
+    const db = await openPhotosDB();
+    const idbPhotos = await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const store = tx.objectStore(IDB_STORE);
+      const req = store.getAll();
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = e => reject(e.target.error);
+    });
+    snap['_idb_photos'] = idbPhotos;
+    showToast('写真 ' + idbPhotos.length + '枚を含むデータを書き出し中...');
+  } catch(e) {
+    snap['_idb_photos'] = [];
+    showToast('写真の読み込みに失敗しました（localStorage部分は書き出します）');
+  }
+
+  const now = new Date();
+  const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  const blob = new Blob([JSON.stringify(snap, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ago_export_withphotos_${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('✅ 写真含む全データを書き出しました（ago_export_withphotos_' + stamp + '.json）');
+}
+
 function importAllData(inputEl) {
   const file = inputEl.files[0];
   if (!file) return;
@@ -5080,6 +5950,7 @@ function importAllData(inputEl) {
         return;
       }
       Object.entries(data).forEach(([key, val]) => {
+        if (key === '_idb_photos') return; // IDB写真は別途処理
         if (val !== null && val !== undefined) {
           try {
             localStorage.setItem(key, JSON.stringify(val));
@@ -5088,8 +5959,30 @@ function importAllData(inputEl) {
           }
         }
       });
-      showToast('✅ データを読み込みました。ページを再読込します...');
-      setTimeout(() => location.reload(), 1500);
+      // IDB写真の復元
+      if (Array.isArray(data['_idb_photos']) && data['_idb_photos'].length > 0) {
+        openPhotosDB().then(db => {
+          const tx = db.transaction(IDB_STORE, 'readwrite');
+          const store = tx.objectStore(IDB_STORE);
+          data['_idb_photos'].forEach(photo => {
+            try { store.put(photo); } catch(e) {}
+          });
+          tx.oncomplete = () => {
+            showToast('✅ データと写真(' + data['_idb_photos'].length + '枚)を読み込みました。ページを再読込します...');
+            setTimeout(() => location.reload(), 1500);
+          };
+          tx.onerror = () => {
+            showToast('✅ データを読み込みました（写真の一部復元に失敗）。ページを再読込します...');
+            setTimeout(() => location.reload(), 1500);
+          };
+        }).catch(() => {
+          showToast('✅ データを読み込みました。ページを再読込します...');
+          setTimeout(() => location.reload(), 1500);
+        });
+      } else {
+        showToast('✅ データを読み込みました。ページを再読込します...');
+        setTimeout(() => location.reload(), 1500);
+      }
     } catch(err) {
       showToast('読み込みに失敗しました: ' + err.message);
     }
@@ -5103,7 +5996,11 @@ setLang(lang);
 loadOrders();
 setInterval(loadOrders, 30000);
 registerSW();
-applyFeatureVisibility();
+// ページを開くたびに必ずログイン画面を表示（モーダルHTMLはscript後に記述されるためDOMContentLoaded待ち）
+localStorage.removeItem('ago_current_user');
+document.addEventListener('DOMContentLoaded', function() {
+  showLoginModal();
+});
 
 // ═══════════════════════════════════════════════════════════════
 // ── ANDPADボード（Phase 6-A）────────────────────────────────
@@ -6246,8 +7143,52 @@ function _pdfFmtMoney(v) {
   return '¥' + parseInt(v || 0).toLocaleString();
 }
 
+// ── html2canvas方式 PDF生成ヘルパー（Phase 7-B）──────────────────
+async function createPDFFromHTML(htmlContent, filename) {
+  const container = document.createElement('div');
+  container.style.cssText = 'position:fixed;top:-9999px;left:0;z-index:-999;width:794px;background:#fff;padding:40px;box-sizing:border-box;font-family:"Meiryo","MS Gothic","Hiragino Kaku Gothic Pro","Noto Sans JP",sans-serif;color:#000;font-size:13px;line-height:1.6';
+  container.innerHTML = htmlContent;
+  document.body.appendChild(container);
+  try {
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      width: 794
+    });
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    const { jsPDF } = window.jspdf;
+    const A4W = 210, A4H = 297;
+    const imgH = Math.round((canvas.height / canvas.width) * A4W);
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    if (imgH <= A4H) {
+      pdf.addImage(imgData, 'JPEG', 0, 0, A4W, imgH);
+    } else {
+      const slicePx = Math.round((A4H / A4W) * canvas.width);
+      let srcY = 0, pageNum = 0;
+      while (srcY < canvas.height) {
+        if (pageNum > 0) pdf.addPage();
+        const sc = document.createElement('canvas');
+        sc.width = canvas.width;
+        sc.height = Math.min(slicePx, canvas.height - srcY);
+        sc.getContext('2d').drawImage(canvas, 0, srcY, canvas.width, sc.height, 0, 0, canvas.width, sc.height);
+        const sliceHmm = (sc.height / canvas.width) * A4W;
+        pdf.addImage(sc.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, A4W, sliceHmm);
+        srcY += slicePx; pageNum++;
+      }
+    }
+    pdf.save(filename);
+    showToast('PDFを保存しました');
+  } catch(e) {
+    showToast('PDF生成エラー: ' + e.message);
+  } finally {
+    document.body.removeChild(container);
+  }
+}
+
 // ── 請求書 PDF出力 ─────────────────────────────────────────────
-function exportInvoicePDF() {
+async function exportInvoicePDF() {
   if (!_pdfCheckLib()) return;
   const editId = document.getElementById('inv-edit-id').value;
   if (!editId) { showToast('先に保存してからPDF出力してください'); return; }
@@ -6256,275 +7197,136 @@ function exportInvoicePDF() {
   const items = lsLoad(lsKey);
   const inv = items.find(i => String(i.id) === String(editId));
   if (!inv) { showToast('データが見つかりません'); return; }
-
-  showToast(t('pdfGenerating'));
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const margin = 15;
-  const pageW = 210;
-  let y = margin;
-
   const docLabel = docType === 'purchase_order' ? '発注書' : '請求書';
   const company = _pdfCompanyName();
-
-  // タイトル
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text(docLabel, pageW / 2, y + 8, { align: 'center' });
-  y += 16;
-
-  // 書類番号・日付
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text('No: ' + (inv.doc_number || String(inv.id)), pageW - margin, y, { align: 'right' });
-  y += 5;
-  doc.text((docLabel === '発注書' ? '発注日' : '発行日') + ': ' + (inv.issue_date || ''), pageW - margin, y, { align: 'right' });
-  if (inv.due_date) { y += 5; doc.text('支払期限: ' + inv.due_date, pageW - margin, y, { align: 'right' }); }
-  y += 8;
-
-  // 宛先・発行者
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text((inv.client_name || '（取引先未設定）') + ' 御中', margin, y);
-  y += 6;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text('発行: ' + company, margin, y);
-  y += 8;
-
-  // 件名
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('件名: ' + (inv.subject || ''), margin, y);
-  y += 10;
-
-  // 明細テーブル
-  const tableBody = [];
-  if (inv.items && inv.items.length > 0) {
-    inv.items.forEach(item => {
-      const qty = parseInt(item.qty) || 1;
-      const price = parseInt(item.unit_price) || 0;
-      tableBody.push([
-        item.description || '',
-        String(qty),
-        _pdfFmtMoney(price),
-        _pdfFmtMoney(qty * price)
-      ]);
-    });
-  } else {
-    tableBody.push(['（明細なし）', '', '', '']);
-  }
-
-  doc.autoTable({
-    startY: y,
-    head: [['品名・内容', '数量', '単価', '金額']],
-    body: tableBody,
-    margin: { left: margin, right: margin },
-    styles: { fontSize: 9, cellPadding: 3 },
-    headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
-    columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 20, halign: 'right' }, 2: { cellWidth: 32, halign: 'right' }, 3: { cellWidth: 32, halign: 'right' } }
-  });
-  y = doc.lastAutoTable.finalY + 6;
-
-  // 小計・税・合計
   const subtotal = parseInt(inv.amount || 0);
   const tax = parseInt(inv.tax || 0);
   const total = parseInt(inv.total || subtotal + tax);
-  const colX = pageW - margin - 80;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text('小計:', colX, y); doc.text(_pdfFmtMoney(subtotal), pageW - margin, y, { align: 'right' }); y += 6;
-  doc.text('消費税:', colX, y); doc.text(_pdfFmtMoney(tax), pageW - margin, y, { align: 'right' }); y += 6;
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('合計:', colX, y); doc.text(_pdfFmtMoney(total), pageW - margin, y, { align: 'right' }); y += 10;
-
-  // 備考
-  if (inv.notes) {
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text('備考:', margin, y); y += 5;
-    const lines = doc.splitTextToSize(inv.notes, pageW - margin * 2);
-    doc.text(lines, margin, y);
-  }
-
-  doc.save('invoice_' + inv.id + '.pdf');
-  showToast('PDFを保存しました');
+  const dateLabel = docLabel === '発注書' ? '発注日' : '発行日';
+  const itemRows = (inv.items && inv.items.length > 0)
+    ? inv.items.map(item => {
+        const qty = parseInt(item.qty) || 1;
+        const price = parseInt(item.unit_price) || 0;
+        return `<tr><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${item.description||''}</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${qty}</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${_pdfFmtMoney(price)}</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${_pdfFmtMoney(qty*price)}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="4" style="padding:6px 8px">（明細なし）</td></tr>';
+  const html = `
+    <div style="text-align:center;font-size:22px;font-weight:bold;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid #6366f1">${docLabel}</div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:16px;font-weight:bold">${inv.client_name||'（取引先未設定）'} 御中</div>
+        <div style="font-size:12px;color:#555;margin-top:4px">発行: ${company}</div>
+      </div>
+      <div style="text-align:right;font-size:12px;color:#555">
+        <div>No: ${inv.doc_number||String(inv.id)}</div>
+        <div>${dateLabel}: ${inv.issue_date||''}</div>
+        ${inv.due_date?`<div>支払期限: ${inv.due_date}</div>`:''}
+      </div>
+    </div>
+    ${inv.subject?`<div style="font-size:14px;font-weight:bold;margin-bottom:14px">件名: ${inv.subject}</div>`:''}
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px">
+      <thead><tr style="background:#6366f1;color:#fff">
+        <th style="padding:8px;text-align:left">品名・内容</th>
+        <th style="padding:8px;text-align:right;width:50px">数量</th>
+        <th style="padding:8px;text-align:right;width:80px">単価</th>
+        <th style="padding:8px;text-align:right;width:80px">金額</th>
+      </tr></thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+    <div style="text-align:right;font-size:12px">
+      <div>小計: ${_pdfFmtMoney(subtotal)}</div>
+      <div>消費税: ${_pdfFmtMoney(tax)}</div>
+      <div style="font-size:15px;font-weight:bold;margin-top:4px">合計: ${_pdfFmtMoney(total)}</div>
+    </div>
+    ${inv.notes?`<div style="margin-top:16px;font-size:12px"><span style="font-weight:bold">備考:</span> ${inv.notes.replace(/\n/g,'<br>')}</div>`:''}
+  `;
+  showToast(t('pdfGenerating'));
+  await createPDFFromHTML(html, 'invoice_' + inv.id + '.pdf');
 }
 
 // ── 見積書 PDF出力 ─────────────────────────────────────────────
-function exportEstimatePDF() {
+async function exportEstimatePDF() {
   if (!_pdfCheckLib()) return;
   const editId = document.getElementById('est-edit-id').value;
   if (!editId) { showToast('先に保存してからPDF出力してください'); return; }
   const items = lsLoad(LS_ESTIMATES);
   const est = items.find(i => String(i.id) === String(editId));
   if (!est) { showToast('データが見つかりません'); return; }
-
-  showToast(t('pdfGenerating'));
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const margin = 15;
-  const pageW = 210;
-  let y = margin;
   const company = _pdfCompanyName();
-
-  // タイトル
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text('見積書', pageW / 2, y + 8, { align: 'center' });
-  y += 16;
-
-  // 書類番号・日付
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text('No: ' + (est.id || ''), pageW - margin, y, { align: 'right' });
-  y += 5;
-  doc.text('見積日: ' + (est.estimate_date || ''), pageW - margin, y, { align: 'right' });
-  if (est.valid_until) { y += 5; doc.text('有効期限: ' + est.valid_until, pageW - margin, y, { align: 'right' }); }
-  y += 8;
-
-  // 宛先・発行者
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text((est.client_name || '（顧客未設定）') + ' 御中', margin, y);
-  y += 6;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text('発行: ' + company, margin, y);
-  y += 8;
-
-  // 件名
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('件名: ' + (est.subject || ''), margin, y);
-  y += 10;
-
-  // 明細テーブル
-  const tableBody = [];
-  if (est.items && est.items.length > 0) {
-    est.items.forEach(item => {
-      const qty = parseFloat(item.qty) || 1;
-      const price = parseInt(item.unit_price) || 0;
-      tableBody.push([
-        item.name || item.description || '',
-        String(qty),
-        item.unit || '式',
-        _pdfFmtMoney(price),
-        _pdfFmtMoney(qty * price)
-      ]);
-    });
-  } else {
-    tableBody.push(['（明細なし）', '', '', '', '']);
-  }
-
-  doc.autoTable({
-    startY: y,
-    head: [['品名', '数量', '単位', '単価', '金額']],
-    body: tableBody,
-    margin: { left: margin, right: margin },
-    styles: { fontSize: 9, cellPadding: 3 },
-    headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
-    columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 18, halign: 'right' }, 2: { cellWidth: 16 }, 3: { cellWidth: 30, halign: 'right' }, 4: { cellWidth: 30, halign: 'right' } }
-  });
-  y = doc.lastAutoTable.finalY + 6;
-
-  // 小計・税・合計
   const subtotal = parseInt(est.subtotal || est.amount || 0);
-  const tax = parseInt(est.tax || Math.floor(subtotal * 0.1));
+  const tax = parseInt(est.taxAmount || est.tax || Math.floor(subtotal * 0.1));
   const total = parseInt(est.total || subtotal + tax);
-  const colX = pageW - margin - 80;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text('小計:', colX, y); doc.text(_pdfFmtMoney(subtotal), pageW - margin, y, { align: 'right' }); y += 6;
-  doc.text('消費税(10%):', colX, y); doc.text(_pdfFmtMoney(tax), pageW - margin, y, { align: 'right' }); y += 6;
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('合計:', colX, y); doc.text(_pdfFmtMoney(total), pageW - margin, y, { align: 'right' }); y += 10;
-
-  // 備考
-  if (est.notes) {
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text('備考:', margin, y); y += 5;
-    const lines = doc.splitTextToSize(est.notes, pageW - margin * 2);
-    doc.text(lines, margin, y);
-  }
-
-  doc.save('estimate_' + est.id + '.pdf');
-  showToast('PDFを保存しました');
+  const itemRows = (est.items && est.items.length > 0)
+    ? est.items.map(item => {
+        const qty = parseFloat(item.qty) || 1;
+        const price = parseInt(item.unitPrice || item.unit_price) || 0;
+        return `<tr><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${item.name||item.description||''}</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${qty}</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${item.unit||'式'}</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${_pdfFmtMoney(price)}</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${_pdfFmtMoney(qty*price)}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="5" style="padding:6px 8px">（明細なし）</td></tr>';
+  const html = `
+    <div style="text-align:center;font-size:22px;font-weight:bold;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid #6366f1">見積書</div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:16px;font-weight:bold">${est.clientName||est.client_name||'（顧客未設定）'} 御中</div>
+        <div style="font-size:12px;color:#555;margin-top:4px">発行: ${company}</div>
+      </div>
+      <div style="text-align:right;font-size:12px;color:#555">
+        <div>No: ${est.id||''}</div>
+        <div>見積日: ${est.date||est.estimate_date||''}</div>
+        ${(est.validUntil||est.valid_until)?`<div>有効期限: ${est.validUntil||est.valid_until}</div>`:''}
+      </div>
+    </div>
+    ${est.subject?`<div style="font-size:14px;font-weight:bold;margin-bottom:14px">件名: ${est.subject}</div>`:''}
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px">
+      <thead><tr style="background:#6366f1;color:#fff">
+        <th style="padding:8px;text-align:left">品名</th>
+        <th style="padding:8px;text-align:right;width:50px">数量</th>
+        <th style="padding:8px;width:40px">単位</th>
+        <th style="padding:8px;text-align:right;width:80px">単価</th>
+        <th style="padding:8px;text-align:right;width:80px">金額</th>
+      </tr></thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+    <div style="text-align:right;font-size:12px">
+      <div>小計: ${_pdfFmtMoney(subtotal)}</div>
+      <div>消費税(10%): ${_pdfFmtMoney(tax)}</div>
+      <div style="font-size:15px;font-weight:bold;margin-top:4px">合計: ${_pdfFmtMoney(total)}</div>
+    </div>
+    ${est.notes?`<div style="margin-top:16px;font-size:12px"><span style="font-weight:bold">備考:</span> ${est.notes.replace(/\n/g,'<br>')}</div>`:''}
+  `;
+  showToast(t('pdfGenerating'));
+  await createPDFFromHTML(html, 'estimate_' + est.id + '.pdf');
 }
 
 // ── 工事日報 PDF出力 ───────────────────────────────────────────
-function exportReportPDF(reportId) {
+async function exportReportPDF(reportId) {
   if (!_pdfCheckLib()) return;
   const reports = lsLoad(LS_PROJECT_REPORTS);
   const r = reports.find(rp => String(rp.id) === String(reportId));
   if (!r) { showToast('日報データが見つかりません'); return; }
-
   const projects = lsLoad(LS_PROJECTS_PIPELINE);
   const proj = projects.find(p => p.id == r.project_id);
   const projName = proj ? proj.name : '（案件不明）';
   const uname = USERS[r.user_id] || r.user_id || '不明';
   const company = _pdfCompanyName();
-
+  const dateStr = (r.report_date || r.created_at || '').substring(0, 10);
+  const html = `
+    <div style="text-align:center;font-size:22px;font-weight:bold;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid #6366f1">工事日報</div>
+    <div style="text-align:right;font-size:12px;color:#555;margin-bottom:16px">${company}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px">
+      <tr><td style="padding:6px 8px;font-weight:bold;width:80px;background:#f3f4f6">案件名</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${projName}</td></tr>
+      <tr><td style="padding:6px 8px;font-weight:bold;background:#f3f4f6">日付</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${dateStr}</td></tr>
+      <tr><td style="padding:6px 8px;font-weight:bold;background:#f3f4f6">記入者</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${uname}</td></tr>
+    </table>
+    <div style="font-size:14px;font-weight:bold;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #d1d5db">日報内容</div>
+    <div style="font-size:13px;white-space:pre-wrap;line-height:1.8">${(r.body||'（本文なし）').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+  `;
   showToast(t('pdfGenerating'));
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const margin = 15;
-  const pageW = 210;
-  let y = margin;
-
-  // タイトル
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('工事日報', pageW / 2, y + 8, { align: 'center' });
-  y += 18;
-
-  // 発行元
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(company, pageW - margin, y, { align: 'right' });
-  y += 8;
-
-  // 基本情報
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  const infoRows = [
-    ['案件名', projName],
-    ['日付', (r.report_date || r.created_at || '').substring(0, 10)],
-    ['記入者', uname]
-  ];
-  infoRows.forEach(([label, val]) => {
-    doc.setFont('helvetica', 'bold');
-    doc.text(label + ':', margin, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(val, margin + 24, y);
-    y += 7;
-  });
-  y += 4;
-
-  // 区切り線
-  doc.setDrawColor(180, 180, 180);
-  doc.line(margin, y, pageW - margin, y);
-  y += 6;
-
-  // 日報本文
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('日報内容:', margin, y);
-  y += 6;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  const bodyLines = doc.splitTextToSize(r.body || '（本文なし）', pageW - margin * 2);
-  doc.text(bodyLines, margin, y);
-
-  doc.save('report_' + reportId + '.pdf');
-  showToast('PDFを保存しました');
+  await createPDFFromHTML(html, 'report_' + reportId + '.pdf');
 }
 
 // ── チェックリスト PDF出力 ─────────────────────────────────────
-function exportChecklistPDF(projectId) {
+async function exportChecklistPDF(projectId) {
   if (!_pdfCheckLib()) return;
   const checklists = lsLoad(LS_PROJECT_CHECKLISTS).filter(c => c.project_id == projectId);
   const projects = lsLoad(LS_PROJECTS_PIPELINE);
@@ -6532,70 +7334,34 @@ function exportChecklistPDF(projectId) {
   const projName = proj ? proj.name : '（案件不明）';
   const company = _pdfCompanyName();
   const today = new Date().toISOString().substring(0, 10);
-
-  showToast(t('pdfGenerating'));
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const margin = 15;
-  const pageW = 210;
-  let y = margin;
-
-  // タイトル
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('工事チェックリスト', pageW / 2, y + 8, { align: 'center' });
-  y += 18;
-
-  // 発行元・日付
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(company, pageW - margin, y, { align: 'right' });
-  y += 5;
-  doc.text('出力日: ' + today, pageW - margin, y, { align: 'right' });
-  y += 8;
-
-  // 案件名
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('案件名: ' + projName, margin, y);
-  y += 10;
-
-  // チェックリストテーブル
   const doneCount = checklists.filter(c => c.done).length;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text('進捗: ' + doneCount + ' / ' + checklists.length + ' 完了', margin, y);
-  y += 6;
-
-  if (checklists.length === 0) {
-    doc.text('チェックリストはありません', margin, y);
-  } else {
-    const tableBody = checklists.map(item => [
-      item.label || '',
-      item.category || '',
-      item.done ? '完了' : '未完了',
-      item.done ? (item.done_at || '').substring(0, 10) : ''
-    ]);
-
-    doc.autoTable({
-      startY: y,
-      head: [['項目名', 'カテゴリ', '状態', '完了日']],
-      body: tableBody,
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 9, cellPadding: 3 },
-      headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
-      columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 30 }, 2: { cellWidth: 22 }, 3: { cellWidth: 28 } },
-      bodyStyles: {},
-      didParseCell: function(data) {
-        if (data.column.index === 2 && data.cell.raw === '完了') {
-          data.cell.styles.textColor = [16, 185, 129];
-        }
-      }
-    });
-  }
-
-  doc.save('checklist_' + projectId + '.pdf');
-  showToast('PDFを保存しました');
+  const itemRows = checklists.length === 0
+    ? '<tr><td colspan="4" style="padding:8px;text-align:center;color:#999">チェックリストはありません</td></tr>'
+    : checklists.map(item => {
+        const statusColor = item.done ? '#10b981' : '#ef4444';
+        const statusText = item.done ? '完了' : '未完了';
+        const doneAt = item.done ? (item.done_at||'').substring(0,10) : '';
+        return `<tr><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${item.label||''}</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${item.category||''}</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:${statusColor};font-weight:bold">${statusText}</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:11px">${doneAt}</td></tr>`;
+      }).join('');
+  const html = `
+    <div style="text-align:center;font-size:22px;font-weight:bold;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid #6366f1">工事チェックリスト</div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:12px;color:#555">
+      <span>${company}</span><span>出力日: ${today}</span>
+    </div>
+    <div style="font-size:15px;font-weight:bold;margin-bottom:8px">案件名: ${projName}</div>
+    <div style="font-size:12px;color:#555;margin-bottom:12px">進捗: ${doneCount} / ${checklists.length} 完了</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="background:#6366f1;color:#fff">
+        <th style="padding:8px;text-align:left">項目名</th>
+        <th style="padding:8px;text-align:left;width:90px">カテゴリ</th>
+        <th style="padding:8px;text-align:left;width:65px">状態</th>
+        <th style="padding:8px;text-align:left;width:80px">完了日</th>
+      </tr></thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+  `;
+  showToast(t('pdfGenerating'));
+  await createPDFFromHTML(html, 'checklist_' + projectId + '.pdf');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -7381,10 +8147,12 @@ function removeContractorFromProject(projectId, contractorId) {
     <p style="text-align:center;color:var(--muted);font-size:13px;margin-bottom:16px">ログイン — ユーザーを選択してください</p>
     <div id="login-user-list" style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto"></div>
     <div id="login-pin-area" style="display:none;margin-top:16px">
-      <div style="font-size:13px;color:var(--muted);margin-bottom:8px;text-align:center" id="login-pin-label">PINを入力してください</div>
-      <div id="login-pin-display" style="font-size:28px;font-weight:700;text-align:center;letter-spacing:8px;margin-bottom:12px;font-family:monospace">------</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px;text-align:center" id="login-pin-label">パスコードを入力してください</div>
+      <div id="login-pin-display" style="font-size:32px;font-weight:700;text-align:center;letter-spacing:10px;margin-bottom:12px;font-family:monospace;min-height:48px;line-height:48px">----</div>
       <input type="hidden" id="login-pin-buffer" value="">
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+      <!-- キーボード入力受け取り用（タブインデックス） -->
+      <input id="login-pin-focus-trap" type="tel" inputmode="numeric" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none" tabindex="0" readonly>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:240px;margin:0 auto">
         <div class="pin-key" onclick="loginPinKey('1')">1</div>
         <div class="pin-key" onclick="loginPinKey('2')">2</div>
         <div class="pin-key" onclick="loginPinKey('3')">3</div>
@@ -7394,14 +8162,11 @@ function removeContractorFromProject(projectId, contractorId) {
         <div class="pin-key" onclick="loginPinKey('7')">7</div>
         <div class="pin-key" onclick="loginPinKey('8')">8</div>
         <div class="pin-key" onclick="loginPinKey('9')">9</div>
-        <div class="pin-key" onclick="loginPinKey('a')">a</div>
+        <div class="pin-key clear" onclick="loginPinKey('clear')" style="font-size:18px">⌫</div>
         <div class="pin-key" onclick="loginPinKey('0')">0</div>
-        <div class="pin-key clear" onclick="loginPinKey('clear')">⌫</div>
-        <div class="pin-key" onclick="loginPinKey('k')">k</div>
-        <div class="pin-key" onclick="loginPinKey('n')">n</div>
-        <div class="pin-key" onclick="loginPinKey('o')">o</div>
+        <div class="pin-key" onclick="loginPinKey('confirm')" style="background:var(--primary);color:#fff;font-size:18px">✓</div>
       </div>
-      <button class="btn-secondary" style="width:100%;margin-top:12px;padding:8px" onclick="document.getElementById('login-pin-area').style.display='none';loginSelectedUser=null;">← ユーザー選択に戻る</button>
+      <button class="btn-secondary" style="width:100%;margin-top:14px;padding:8px" onclick="document.getElementById('login-pin-area').style.display='none';loginSelectedUser=null;">← ユーザー選択に戻る</button>
     </div>
   </div>
 </div>
